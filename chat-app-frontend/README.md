@@ -1,70 +1,132 @@
-# Getting Started with Create React App
+# ChatApp
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A real-time chat application with user registration, login, and message delivery functionality built using Node.js, MongoDB, and Socket.io. This application supports user authentication, JWT-based sessions, and real-time communication between users.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **User Registration and Authentication**: Users can register with their phone number and username, and authenticate using JWT tokens.
+- **Real-time Messaging**: Uses Socket.io to provide real-time message delivery between users.
+- **Message Persistence**: Messages are stored in a MongoDB database and can be retrieved even if the user is offline.
+- **Logout and Session Management**: Secure logout mechanism that terminates user sessions and disconnections from Socket.io.
 
-### `npm start`
+## Tech Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Backend**: Node.js, Express.js
+- **Database**: MongoDB (with Mongoose)
+- **Authentication**: JSON Web Tokens (JWT), bcryptjs
+- **Real-time Communication**: Socket.io
+- **Environment Variables**: dotenv
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Installation
 
-### `npm test`
+### Prerequisites
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+- Node.js (v14 or higher)
+- MongoDB instance (You can use a local MongoDB server or MongoDB Atlas for cloud hosting)
+- `.env` file for secret keys and database URI
 
-### `npm run build`
+### Steps
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. Clone the repository:
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+   ```bash
+   git clone https://github.com/your-username/chatapp.git
+   cd chatapp
+   ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+2. Install dependencies:
 
-### `npm run eject`
+   ```bash
+   npm install
+   ```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+3. Create a `.env` file at the root of the project and add your MongoDB URI and JWT secret key:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+   ```
+   JWT_SECRET=your_jwt_secret_key
+   MONGO_URI=your_mongo_connection_string
+   ```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+4. Start the application:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+   ```bash
+   npm start
+   ```
 
-## Learn More
+   The application will be running on `http://localhost:5000`.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## API Endpoints
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+### 1. **POST** `/register`
 
-### Code Splitting
+- Register a new user.
+- **Request Body**:
+  ```json
+  {
+    "phoneNumber": "user_phone_number",
+    "username": "user_name",
+    "password": "user_password"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "token": "JWT_token",
+    "profileId": "user_profile_id",
+    "username": "user_name",
+    "message": "Registration successful"
+  }
+  ```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 2. **POST** `/login`
 
-### Analyzing the Bundle Size
+- User login with phone number and password.
+- **Request Body**:
+  ```json
+  {
+    "phoneNumber": "user_phone_number",
+    "password": "user_password"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "token": "JWT_token",
+    "profileId": "user_profile_id",
+    "username": "user_name",
+    "message": "Login successful"
+  }
+  ```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+### 3. **POST** `/logout`
 
-### Making a Progressive Web App
+- User logout and disconnect from Socket.io.
+- **Request Body**:
+  ```json
+  {
+    "profileId": "user_profile_id"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "message": "Logout successful and connection terminated"
+  }
+  ```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## Real-time Messaging
 
-### Advanced Configuration
+- Once logged in, users can send and receive messages in real-time.
+- Messages are stored in the MongoDB database and can be delivered when the recipient comes online.
+- Offline users will receive undelivered messages once they log in again.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+## .env Configuration
 
-### Deployment
+You need to create a `.env` file in the root of the project to store sensitive configuration like JWT secret and MongoDB URI.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+### Example `.env` file:
 
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```
+JWT_SECRET=your_jwt_secret_key
+MONGO_URI=your_mongo_connection_string
+```
