@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import io from 'socket.io-client';
 import '../styles/chat/rightbar.css';
-import logo from './../../Logo.png';
+import logo from '../../Logo.png';
 
 const socket = io('http://localhost:5000');
 
