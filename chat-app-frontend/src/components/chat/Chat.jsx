@@ -24,8 +24,6 @@ function Chat() {
   const [searchQuery, setSearchQuery] = useState('');
   const [contactSearchResults, setContactSearchResults] = useState([]);
 
-  const handleLogout = useLogout();
-
   useEffect(() => {
     // Clean up token on unmount
     return () => {
@@ -55,7 +53,6 @@ function Chat() {
           />
         </Col>
       </Row>
-      <button onClick={handleLogout} className="logout-btn">Logout</button> {/* Logout button */}
     </Container>
   );
 }
