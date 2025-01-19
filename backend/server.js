@@ -6,7 +6,7 @@ const cors = require('cors');
 const http = require('http');
 const authRoutes = require('./routes/authRoutes');
 const messageRoutes = require('./routes/messageRoutes');
-const { initializeSocket } = require('./socketio');
+const { initializeSocket } = require('./authentication/socketio');
 
 const app = express();
 const server = http.createServer(app);

@@ -1,7 +1,11 @@
+require('dotenv').config(); // Import dotenv to load environment variables
+
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { userSockets, io } = require('../socketio');
+
+const JWT_SECRET = process.env.JWT_SECRET; // Access the JWT secret from the .env file
 
 exports.registerUser = async (req, res) => {
     const { phoneNumber, password, username } = req.body;
@@ -27,7 +31,7 @@ exports.registerUser = async (req, res) => {
 
         await user.save();
 
-        const token = jwt.sign({ profileId: user.profileId, phoneNumber: user.phoneNumber, username: user.username }, 'your_jwt_secret', { expiresIn: '1h' });
+        const token = jwt.sign({ profileId: user.profileId, phoneNumber: user.phoneNumber, username: user.username }, JWT_SECRET, { expiresIn: '1h' });
 
         res.status(201).json({ token, profileId: user.profileId, username: user.username, message: 'Registration successful' });
     } catch (error) {
@@ -55,7 +59,7 @@ exports.loginUser = async (req, res) => {
 
         const token = jwt.sign(
             { profileId: user.profileId, phoneNumber: user.phoneNumber, username: user.username },
-            'your_jwt_secret',
+            JWT_SECRET,
             { expiresIn: '1h' }
         );
 
@@ -95,3 +99,4 @@ exports.logoutUser = async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 };
+    
