@@ -9,13 +9,13 @@ Features
     Logout and Session Management: Secure logout mechanism that terminates user sessions and disconnections from Socket.io.
 
 
-
-Tech Stack![SignUpPage](https://github.com/user-attachments/assets/e5d67a48-abcc-4fd1-837b-74d5695c84d8)
+![SignUpPage](https://github.com/user-attachments/assets/e5d67a48-abcc-4fd1-837b-74d5695c84d8)
 ![LoginPage](https://github.com/user-attachments/assets/a960f434-013f-44dc-b7f7-ede4d62cd7b1)
 ![ChatPage2](https://github.com/user-attachments/assets/5cab943b-28f7-4c06-a199-7fa3a9439123)
 ![ChatPage1](https://github.com/user-attachments/assets/16900f32-cb21-47f6-9ade-b99cbb289660)
 
 
+Tech Stack
     Backend: Node.js, Express.js
     Database: MongoDB (with Mongoose)
     Authentication: JSON Web Tokens (JWT), bcryptjs
