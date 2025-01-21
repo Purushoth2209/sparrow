@@ -1,4 +1,4 @@
-ChatApp
+Sparrow (real-time chat application):    
 
 A real-time chat application with user registration, login, and message delivery functionality built using Node.js, MongoDB, and Socket.io. This application supports user authentication, JWT-based sessions, and real-time communication between users.
 
