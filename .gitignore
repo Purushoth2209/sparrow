@@ -313,3 +313,4 @@ yarn-audit.json
 # scratch/
 
 backend/.env
+backend/.env
