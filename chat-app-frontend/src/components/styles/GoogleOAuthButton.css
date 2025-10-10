@@ -1,0 +1,94 @@
+/* Google OAuth Button Styles - Matching App Theme */
+
+.oauth-section {
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: 20px;
+}
+
+.google-oauth-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+  background-color: #ffffff;
+  border: 1px solid #cccccc;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  font-family: 'Roboto', sans-serif;
+  color: #333333;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
+}
+
+.google-oauth-btn:hover {
+  background-color: #f7f7f7;
+  border-color: #888888;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.google-oauth-btn:active {
+  background-color: #eaeaea;
+}
+
+.google-oauth-btn:focus {
+  outline: none;
+  border-color: #888888;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.google-icon {
+  flex-shrink: 0;
+}
+
+.google-text {
+  white-space: nowrap;
+}
+
+/* Divider for "OR" separator - Matching App Theme */
+.auth-divider {
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: #555555;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: 'Roboto', sans-serif;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #cccccc;
+}
+
+.auth-divider::before {
+  margin-right: 16px;
+}
+
+.auth-divider::after {
+  margin-left: 16px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 480px) {
+  .google-oauth-btn {
+    font-size: 13px;
+    padding: 10px 20px;
+    gap: 8px;
+  }
+
+  .google-icon {
+    width: 18px;
+    height: 18px;
+  }
+}
+

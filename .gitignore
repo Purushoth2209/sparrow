@@ -1,0 +1,314 @@
+# ============================================================================
+# ENVIRONMENT VARIABLES & SECRETS
+# ============================================================================
+# Never commit sensitive information!
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# Firebase service account keys
+*-firebase-adminsdk-*.json
+firebase-adminsdk*.json
+serviceAccountKey.json
+
+# ============================================================================
+# NODE.JS / NPM
+# ============================================================================
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Package manager lock files (optional - uncomment if you want to ignore)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Node version manager
+.nvmrc.local
+.node-version
+
+# ============================================================================
+# LOGS
+# ============================================================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# ============================================================================
+# FRONTEND BUILD OUTPUTS (React)
+# ============================================================================
+# Production build
+chat-app-frontend/build/
+chat-app-frontend/dist/
+chat-app-frontend/.next/
+chat-app-frontend/out/
+
+# Static files
+chat-app-frontend/.cache/
+chat-app-frontend/public/static/
+
+# Testing
+chat-app-frontend/coverage/
+chat-app-frontend/.nyc_output
+
+# ============================================================================
+# BACKEND BUILD OUTPUTS
+# ============================================================================
+backend/build/
+backend/dist/
+backend/.cache/
+
+# ============================================================================
+# TESTING
+# ============================================================================
+coverage/
+*.coverage
+.nyc_output/
+.jest-cache/
+
+# Test reports
+test-results/
+junit.xml
+
+# ============================================================================
+# DATABASES
+# ============================================================================
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
+
+# MongoDB
+data/
+mongodb/
+*.mongo
+
+# Redis
+dump.rdb
+
+# ============================================================================
+# IDE / EDITOR FILES
+# ============================================================================
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.code-workspace
+
+# JetBrains IDEs (WebStorm, IntelliJ, etc.)
+.idea/
+*.iml
+*.iws
+*.ipr
+.idea_modules/
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+.*.sw[a-z]
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+.elc
+auto-save-list
+tramp
+
+# ============================================================================
+# OPERATING SYSTEM FILES
+# ============================================================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================================
+# TEMPORARY FILES
+# ============================================================================
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+
+# ============================================================================
+# MISCELLANEOUS
+# ============================================================================
+# Debug files
+*.log.*
+debug/
+.pnp.*
+.yarn/
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# parcel-bundler cache
+.cache
+.parcel-cache
+
+# Next.js
+.next/
+out/
+
+# Nuxt.js
+.nuxt/
+dist/
+
+# Gatsby
+.cache/
+public/
+
+# Docusaurus
+.docusaurus/
+build/
+
+# Serverless directories
+.serverless/
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing
+.vscode-test
+
+# Temporary folders
+tmp/
+temp/
+
+# ============================================================================
+# DOCUMENTATION (optional - uncomment if you don't want to track these)
+# ============================================================================
+# Uncomment if you want to ignore auto-generated docs
+# docs/build/
+# docs/_build/
+
+# ============================================================================
+# PROJECT-SPECIFIC
+# ============================================================================
+# Uploaded files (user-generated content)
+uploads/
+public/uploads/
+static/uploads/
+
+# Session storage (if using file-based sessions)
+sessions/
+
+# SSL certificates (never commit these!)
+*.pem
+*.key
+*.crt
+*.cert
+ssl/
+certs/
+
+# ============================================================================
+# SECURITY SCAN RESULTS
+# ============================================================================
+# Dependency vulnerability reports
+npm-audit.json
+yarn-audit.json
+
+# ============================================================================
+# BACKUP FILES
+# ============================================================================
+*.backup
+*.bak
+*.swp
+*~
+
+# ============================================================================
+# NOTES
+# ============================================================================
+# Uncomment this section if you want to ignore personal notes
+# notes.txt
+# TODO.txt
+# NOTES.md
+# scratch/
+

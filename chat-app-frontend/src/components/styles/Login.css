@@ -58,6 +58,15 @@
     transition: all 0.3s ease;
 }
 
+.password-field .login-input,
+.password-field .signup-input {
+    padding-right: 40px; /* room for eye icon */
+}
+
+.password-field .eye-toggle {
+    color: #666;
+}
+
 .login-input:focus {
     border-color: #888888;
     box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);

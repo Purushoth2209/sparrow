@@ -2,47 +2,69 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
 import './styles/Login.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Logo from "../Logo.png";
+import PasswordField from './PasswordField';
+import GoogleOAuthButton from './GoogleOAuthButton';
 
 const Login = () => {
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [socket, setSocket] = useState(null);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
+    // Check for authentication error from Google OAuth
+    const error = searchParams.get('error');
+    if (error === 'auth_failed') {
+      alert('Google authentication failed. Please try again.');
+      // Clean up URL
+      window.history.replaceState({}, document.title, '/login');
+    }
+
     const socketInstance = io('http://localhost:5000');
     setSocket(socketInstance);
 
     return () => {
       if (socketInstance) socketInstance.disconnect();
     };
-  }, []);
+  }, [searchParams]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
 
     try {
-      const response = await axios.post(
-        'http://localhost:5000/api/auth/login',
-        { phoneNumber, password }
+      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+      
+      // Session-based authentication - send credentials
+      const { data } = await axios.post(
+        `${backendUrl}/api/auth/login`,
+        { identifier, password },
+        { withCredentials: true } // Important: Send/receive cookies
       );
 
-      if (response.status === 200) {
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('profileId', response.data.profileId);
-        localStorage.setItem('username', response.data.username);
+      if (data.success) {
+        // Store user info in localStorage for convenience
+        localStorage.setItem('profileId', data.user.profileId);
+        localStorage.setItem('username', data.user.username);
+        localStorage.setItem('email', data.user.email || '');
+        localStorage.setItem('fullName', data.user.fullName || '');
+        localStorage.setItem('profileImage', data.user.profileImage || '');
+        localStorage.setItem('token', 'session-authenticated'); // Flag for PrivateRoute
 
+        // Connect to Socket.IO
         if (socket) {
-          socket.emit('setUser', response.data.profileId);
+          socket.emit('setUser', data.user.profileId);
         }
 
+        console.log('✅ Login successful, session created');
+
+        // Navigate to chat
         navigate('/chat');
-      } else {
-        alert(response.data.message);
       }
     } catch (error) {
+      console.error('Login failed:', error);
       alert('Login failed. Please try again.');
     }
   };
@@ -54,20 +76,29 @@ const Login = () => {
         <h1 className="app-title">Sparrow</h1>
       </div>
       <h2 className="greeting-text">Welcome Back! Please Login to Continue</h2>
+      
+      {/* Google OAuth Sign-In */}
+      <div className="oauth-section">
+        <GoogleOAuthButton text="Sign in with Google" />
+      </div>
+
+      {/* Divider */}
+      <div className="auth-divider">OR</div>
+
+      {/* Email/Phone/Username Login */}
       <form onSubmit={handleLogin} className="login-form">
         <input
           type="text"
-          placeholder="Phone Number"
-          value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value)}
+          placeholder="Email, Phone, or Username"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
           className="login-input"
         />
-        <input
-          type="password"
-          placeholder="Password"
+        <PasswordField
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="login-input"
+          inputClassName="login-input"
+          containerClassName="password-field"
         />
         <button type="submit" className="login-btn">Login</button>
       </form>

@@ -6,6 +6,8 @@
     "axios": "^1.7.9",
     "bootstrap": "^5.3.3",
     "cra-template": "1.2.0",
+    "firebase": "^12.3.0",
+    "firebase-admin": "^13.5.0",
     "js-cookie": "^3.0.5",
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.7",
@@ -41,5 +43,9 @@
   },
   "devDependencies": {
     "@babel/plugin-proposal-private-property-in-object": "^7.21.11"
-  }
+  },
+  "description": "A real-time chat application with user registration, login, and message delivery functionality built using Node.js, MongoDB, and Socket.io. This application supports user authentication, JWT-based sessions, and real-time communication between users.",
+  "main": "index.js",
+  "author": "",
+  "license": "ISC"
 }

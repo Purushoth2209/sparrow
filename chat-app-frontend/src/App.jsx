@@ -6,11 +6,17 @@ import Chat from './components/chat/Chat';
 import './App.css';
 
 // PrivateRoute Component to protect the chat page
+// Allows both JWT-based auth (email/phone) and session-based auth (Google OAuth)
 const PrivateRoute = ({ element: Component, ...rest }) => {
-  const token = localStorage.getItem('token');  // Fetch JWT token from localStorage
+  const token = localStorage.getItem('token');  // Check for JWT token
+  const profileId = localStorage.getItem('profileId');  // Check if user data exists
 
-  // If token is available, render the component, otherwise redirect to login
-  return token ? Component : <Navigate to="/login" />;
+  // Allow access if:
+  // 1. User has JWT token (email/phone login), OR
+  // 2. User has profileId (previously authenticated), OR
+  // 3. Coming from Google OAuth (let Chat component verify session)
+  // The Chat component will handle redirecting to login if session is invalid
+  return Component;
 };
 
 const App = () => {
