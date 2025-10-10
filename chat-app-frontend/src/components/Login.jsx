@@ -15,6 +15,16 @@ const Login = () => {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
+    // Check if user is already authenticated
+    const token = localStorage.getItem('token');
+    const profileId = localStorage.getItem('profileId');
+    
+    if (token || profileId) {
+      // User is already logged in, redirect to friends page
+      navigate('/friends');
+      return;
+    }
+
     // Check for authentication error from Google OAuth
     const error = searchParams.get('error');
     if (error === 'auth_failed') {
@@ -61,7 +71,7 @@ const Login = () => {
         console.log('✅ Login successful, session created');
 
         // Navigate to chat
-        navigate('/chat');
+        navigate('/friends');
       }
     } catch (error) {
       console.error('Login failed:', error);

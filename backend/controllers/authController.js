@@ -476,7 +476,7 @@ exports.googleCallback = async (req, res) => {
     console.log('✅ Google authentication successful, session created');
 
     // Redirect directly to chat page
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/chat`);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/friends`);
 
   } catch (error) {
     console.error('❌ Google callback failed:', error);

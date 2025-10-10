@@ -3,12 +3,21 @@ const User = require('../models/User');
 
 async function sendMessage(senderId, receiverId, content) {
   try {
+    // Validate friendship before sending message
+    const sender = await User.findOne({ profileId: senderId });
+    if (!sender) {
+      throw new Error('Sender not found');
+    }
+
+    if (!sender.friends.includes(receiverId)) {
+      throw new Error('Cannot send message to non-friend user');
+    }
+
     const message = new Message({
-      sender: senderId,
-      receiver: receiverId,
+      senderId,
+      receiverId,
       content,
-      status: 'sent',
-      createdAt: new Date(),
+      timestamp: new Date(),
     });
 
     await message.save();

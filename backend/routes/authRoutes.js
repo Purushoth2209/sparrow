@@ -1,9 +1,6 @@
 const express = require('express');
 const { registerUser, loginUser, logoutUser, checkUsername } = require('../controllers/authController');
-const { addContact } = require('../controllers/addContact');
-const { searchUser } = require('../controllers/searchUser');
 const ensureAuthenticated = require('../middleware/ensureAuthenticated');
-const { fetchContact } = require('../controllers/fetchContact');
 
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
@@ -24,8 +21,5 @@ router.get('/protected', ensureAuthenticated, (req, res) => {
 });
 
 router.post('/logout', logoutUser);
-router.get('/search', searchUser);
-router.post('/addContact', addContact);
-router.get('/fetchContact', fetchContact);
 
 module.exports = router;

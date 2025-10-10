@@ -10,6 +10,7 @@ const express = require('express');
 const router = express.Router();
 const ensureAuthenticated = require('../middleware/ensureAuthenticated');
 const authController = require('../controllers/authController');
+const User = require('../models/User');
 
 /**
  * Get Current User
@@ -35,6 +36,48 @@ router.get('/profile', ensureAuthenticated, (req, res) => {
     success: true, 
     profile: req.user 
   });
+});
+
+/**
+ * Debug Session Status
+ * 
+ * Check session status for debugging
+ * 
+ * @route   GET /api/session-status
+ * @access  Public (for debugging)
+ */
+router.get('/session-status', (req, res) => {
+  res.json({
+    success: true,
+    hasSession: !!req.session,
+    sessionId: req.sessionID,
+    hasUser: !!(req.session && req.session.user),
+    user: req.session?.user || null
+  });
+});
+
+/**
+ * Debug Online Status
+ * 
+ * Check online status for debugging
+ * 
+ * @route   GET /api/online-status
+ * @access  Public (for debugging)
+ */
+router.get('/online-status', async (req, res) => {
+  try {
+    const onlineUsers = await User.find({ isOnline: true }).select('profileId username isOnline lastSeen');
+    const { userSockets } = require('../socketio');
+    
+    res.json({
+      success: true,
+      onlineUsers: onlineUsers,
+      connectedSockets: Array.from(userSockets.keys()),
+      socketCount: userSockets.size
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
 });
 
 /**

@@ -9,6 +9,7 @@ const authRoutes = require('./routes/authRoutes');
 const messageRoutes = require('./routes/messageRoutes');
 const oidcAuthRoutes = require('./routes/oidcAuthRoutes');
 const userRoutes = require('./routes/userRoutes');
+const friendRoutes = require('./routes/friendRoutes');
 const { initializeSocket } = require('./socketio');
 
 const app = express();
@@ -36,6 +37,8 @@ app.use(
     resave: false,
     // Don't create session until something is stored
     saveUninitialized: false,
+    // Use memory store for development (in production, use Redis or MongoDB)
+    store: new (require('express-session').MemoryStore)(),
     cookie: {
       // Session expires after 7 days
       maxAge: 7 * 24 * 60 * 60 * 1000,
@@ -64,11 +67,16 @@ mongoose.connect(mongoURI)
     // Protected user routes (requires authentication)
     app.use('/api', userRoutes);
     
+    // Friend request routes (requires authentication)
+    app.use('/api', friendRoutes);
+    
     // Message routes
     app.use('/api/messages', messageRoutes);
     
     // Initialize Socket.IO for real-time chat
-    initializeSocket(server);
+    initializeSocket(server).catch(err => {
+      console.error('❌ Socket.IO initialization failed:', err);
+    });
     
     // Start server
     const PORT = process.env.PORT || 5000;

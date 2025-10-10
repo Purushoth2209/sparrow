@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './styles/Signup.css';
 import PasswordField from './PasswordField';
 import GoogleOAuthButton from './GoogleOAuthButton';
 import Logo from "../Logo.png";
+import { useNavigate } from 'react-router-dom';
 
 const Signup = () => {
+  const navigate = useNavigate();
   const [identifier, setIdentifier] = useState('');
   const [fullName, setFullName] = useState('');
   const [identifierType, setIdentifierType] = useState(''); // 'email' | 'phone' | ''
@@ -13,6 +15,18 @@ const Signup = () => {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [usernameStatus, setUsernameStatus] = useState('');
+
+  useEffect(() => {
+    // Check if user is already authenticated
+    const token = localStorage.getItem('token');
+    const profileId = localStorage.getItem('profileId');
+    
+    if (token || profileId) {
+      // User is already logged in, redirect to friends page
+      navigate('/friends');
+      return;
+    }
+  }, [navigate]);
 
   const handleSignup = async (e) => {
     e.preventDefault();
@@ -45,8 +59,8 @@ const Signup = () => {
 
         console.log('✅ Registration successful, session created');
 
-        // Redirect to chat instead of login
-        window.location.href = '/chat';
+        // Redirect to friends page
+        navigate('/friends');
       }
     } catch (error) {
       if (error.response) {

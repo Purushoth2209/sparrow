@@ -36,25 +36,21 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true
   },
-  contacts: [
+  friends: [{ type: String }], // profileIds of accepted friends
+  friendRequests: [
     {
-      profileId: {
-        type: String,
-        required: true
-      },
-      username: {
-        type: String,
-        required: true
-      },
-      phoneNumber: {
-        type: String,
-        required: true
-      }   
+      fromUserId: { type: String, required: true },
+      status: { type: String, enum: ['pending','accepted','rejected'], default: 'pending' },
+      timestamp: { type: Date, default: Date.now }
     }
   ],
   isOnline: {
     type: Boolean,
     default: false,
+  },
+  lastSeen: {
+    type: Date,
+    default: Date.now,
   },
   socketId: {
     type: String,
