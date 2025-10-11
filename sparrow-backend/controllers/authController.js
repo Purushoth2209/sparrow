@@ -230,7 +230,21 @@ exports.registerUser = async (req, res) => {
 exports.loginUser = async (req, res) => {
     const { identifier, email, phoneNumber, password, country } = req.body;
 
-    if (!password || (!identifier && !email && !phoneNumber)) {
+    // Debug logging
+    console.log('🔍 Login attempt - Request body:', req.body);
+    console.log('🔍 Login attempt - Identifier:', identifier);
+    console.log('🔍 Login attempt - Email:', email);
+    console.log('🔍 Login attempt - PhoneNumber:', phoneNumber);
+    console.log('🔍 Login attempt - Password present:', !!password);
+
+    // Check for empty strings as well
+    const hasValidIdentifier = identifier && identifier.trim().length > 0;
+    const hasValidEmail = email && email.trim().length > 0;
+    const hasValidPhone = phoneNumber && phoneNumber.trim().length > 0;
+    const hasValidPassword = password && password.trim().length > 0;
+
+    if (!hasValidPassword || (!hasValidIdentifier && !hasValidEmail && !hasValidPhone)) {
+        console.log('❌ Login failed - Missing or empty credentials');
         return res.status(400).json({ message: 'Invalid credentials' });
     }
 

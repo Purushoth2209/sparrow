@@ -19,14 +19,23 @@
  * @param {Function} next - Express next middleware function
  */
 function ensureAuthenticated(req, res, next) {
+  // Debug logging
+  console.log('🔍 Auth middleware - Session ID:', req.sessionID);
+  console.log('🔍 Auth middleware - Session exists:', !!req.session);
+  console.log('🔍 Auth middleware - Session user:', !!req.session?.user);
+  console.log('🔍 Auth middleware - Cookies:', req.headers.cookie);
+  console.log('🔍 Auth middleware - Origin:', req.headers.origin);
+  
   // Check session-based authentication
   if (req.session && req.session.user) {
     // User is authenticated via session
     req.user = req.session.user;
+    console.log('✅ Auth middleware - User authenticated:', req.user.username);
     return next();
   }
 
   // Not authenticated
+  console.log('❌ Auth middleware - No valid session found');
   return res.status(401).json({ 
     success: false, 
     error: 'Authentication required. Please login.' 

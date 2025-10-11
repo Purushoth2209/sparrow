@@ -51,8 +51,7 @@ app.use(
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       // Secure requires HTTPS (set to true in production with HTTPS)
       secure: process.env.NODE_ENV === 'production',
-      // Domain for cookie (leave undefined for localhost)
-      domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined,
+      // Domain for cookie (leave undefined for cross-origin requests)
     },
   })
 );
