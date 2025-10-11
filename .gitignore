@@ -245,7 +245,8 @@ dist/
 
 # Gatsby
 .cache/
-public/
+# Only ignore Gatsby's generated public folder, not React's public folder
+# public/  # Commented out to allow React public folders
 
 # Docusaurus
 .docusaurus/
