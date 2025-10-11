@@ -59,14 +59,22 @@ chat-app-frontend/build/
 chat-app-frontend/dist/
 chat-app-frontend/.next/
 chat-app-frontend/out/
+sparrow-frontend/build/
+sparrow-frontend/dist/
+sparrow-frontend/.next/
+sparrow-frontend/out/
 
 # Static files
 chat-app-frontend/.cache/
 chat-app-frontend/public/static/
+sparrow-frontend/.cache/
+sparrow-frontend/public/static/
 
 # Testing
 chat-app-frontend/coverage/
 chat-app-frontend/.nyc_output
+sparrow-frontend/coverage/
+sparrow-frontend/.nyc_output
 
 # ============================================================================
 # BACKEND BUILD OUTPUTS
@@ -312,5 +320,82 @@ yarn-audit.json
 # NOTES.md
 # scratch/
 
+# ============================================================================
+# SPARROW-FRONTEND SPECIFIC
+# ============================================================================
+# Environment variables
+sparrow-frontend/.env
+sparrow-frontend/.env.local
+sparrow-frontend/.env.development.local
+sparrow-frontend/.env.test.local
+sparrow-frontend/.env.production.local
+
+# Build outputs
+sparrow-frontend/build/
+sparrow-frontend/dist/
+
+# Dependencies
+sparrow-frontend/node_modules/
+
+# Logs
+sparrow-frontend/npm-debug.log*
+sparrow-frontend/yarn-debug.log*
+sparrow-frontend/yarn-error.log*
+
+# Runtime data
+sparrow-frontend/.pnp.*
+sparrow-frontend/.yarn/
+
+# Testing
+sparrow-frontend/coverage/
+sparrow-frontend/.nyc_output
+
+# ESLint cache
+sparrow-frontend/.eslintcache
+
+# Optional npm cache directory
+sparrow-frontend/.npm
+
+# ============================================================================
+# BACKEND SPECIFIC
+# ============================================================================
+# Environment variables
 backend/.env
-backend/.env
+backend/.env.local
+backend/.env.development.local
+backend/.env.test.local
+backend/.env.production.local
+sparrow-backend/.env
+sparrow-backend/.env.local
+sparrow-backend/.env.development.local
+sparrow-backend/.env.test.local
+sparrow-backend/.env.production.local
+backend-deploy/.env
+backend-deploy/.env.local
+backend-deploy/.env.development.local
+backend-deploy/.env.test.local
+backend-deploy/.env.production.local
+
+# Build outputs
+backend/build/
+backend/dist/
+sparrow-backend/build/
+sparrow-backend/dist/
+backend-deploy/build/
+backend-deploy/dist/
+
+# Dependencies
+backend/node_modules/
+sparrow-backend/node_modules/
+backend-deploy/node_modules/
+
+# Logs
+backend/npm-debug.log*
+backend/yarn-debug.log*
+backend/yarn-error.log*
+sparrow-backend/npm-debug.log*
+sparrow-backend/yarn-debug.log*
+sparrow-backend/yarn-error.log*
+backend-deploy/npm-debug.log*
+backend-deploy/yarn-debug.log*
+backend-deploy/yarn-error.log*
