@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import './styles/Signup.css';
+import './styles/modern-theme.css';
 import PasswordField from './PasswordField';
 import GoogleOAuthButton from './GoogleOAuthButton';
 import Logo from "../Logo.png";
@@ -105,12 +105,13 @@ const Signup = () => {
   };
 
   return (
-    <div className="signup-container">
-      <div className="logo-container">
-        <img src={Logo} alt="App Logo" className="app-logo" />
-        <h1 className="app-title">Sparrow</h1>
-      </div>
-      <h2 className="greeting-text">Create your account</h2>
+    <div className="modern-app">
+      <div className="signup-container">
+        <div className="logo-container">
+          <img src={Logo} alt="App Logo" className="app-logo" />
+          <h1 className="app-title">Sparrow</h1>
+        </div>
+        <h2 className="greeting-text">Create your account</h2>
       
       {/* Google OAuth Sign-In */}
       <div className="oauth-section">
@@ -120,46 +121,52 @@ const Signup = () => {
       {/* Divider */}
       <div className="auth-divider">OR</div>
 
-      {/* Email/Phone Registration Form */}
-      <form onSubmit={handleSignup} className="signup-form">
-        <input
-          type="text"
-          placeholder="Full name"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          className="signup-input"
-        />
-        <input
-          type="text"
-          placeholder="Username"
-          value={username}
-          onChange={(e) => checkUsername(e.target.value)}
-          className="signup-input"
-        />
-        {usernameStatus === 'available' && <div style={{ color: 'green', fontSize: 12 }}>Username is available</div>}
-        {usernameStatus && usernameStatus !== 'available' && <div style={{ color: 'red', fontSize: 12 }}>Suggestions: {usernameStatus}</div>}
-        <input
-          type="text"
-          placeholder="Email or Phone Number"
-          value={identifier}
-          onChange={(e) => detectIdentifier(e.target.value)}
-          className="signup-input"
-        />
-        {identifier && (
-          <div style={{ fontSize: 12, color: identifierValid ? 'green' : 'red' }}>
-            {identifierType === 'email' ? 'Detected email' : identifierType === 'phone' ? 'Detected phone' : ''} {identifierValid ? '' : '(format looks invalid)'}
-          </div>
-        )}
-        <PasswordField
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          inputClassName="signup-input"
-          containerClassName="password-field"
-        />
-        <button type="submit" className="signup-btn">Signup</button>
-      </form>
-      <div className="login-link">
-        <a href="/login">Already have an account? Login</a>
+        {/* Email/Phone Registration Form */}
+        <form onSubmit={handleSignup} className="signup-form">
+          <input
+            type="text"
+            placeholder="Full name"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+            className="signup-input"
+          />
+          <input
+            type="text"
+            placeholder="Username"
+            value={username}
+            onChange={(e) => checkUsername(e.target.value)}
+            className="signup-input"
+          />
+          {usernameStatus === 'available' && <div className="validation-message validation-success">Username is available</div>}
+          {usernameStatus && usernameStatus !== 'available' && <div className="validation-message validation-error">Suggestions: {usernameStatus}</div>}
+          <input
+            type="text"
+            placeholder="Email or Phone Number"
+            value={identifier}
+            onChange={(e) => detectIdentifier(e.target.value)}
+            className="signup-input"
+          />
+          {identifier && (
+            <div className={`validation-message ${identifierValid ? 'validation-success' : 'validation-error'}`}>
+              {identifierType === 'email' ? 'Detected email' : identifierType === 'phone' ? 'Detected phone' : ''} {identifierValid ? '' : '(format looks invalid)'}
+            </div>
+          )}
+          <PasswordField
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            inputClassName="signup-input"
+            containerClassName="password-field"
+          />
+          <button 
+            type="submit" 
+            className="signup-btn"
+          >
+            Signup
+          </button>
+        </form>
+        <div className="login-link">
+          <a href="/login">Already have an account? Login</a>
+        </div>
       </div>
     </div>
   );

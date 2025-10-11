@@ -5,6 +5,8 @@ import axios from 'axios';
 import UserSearchIcon from './icons/UserSearchIcon';
 import FriendRequestIcon from './icons/FriendRequestIcon';
 import LogoutIcon from '../Logout.png';
+import Logo from '../Logo.png';
+import CustomAlert from './CustomAlert';
 import './styles/modern-theme.css';
 
 const GlobalSearch = () => {
@@ -14,6 +16,9 @@ const GlobalSearch = () => {
   const [error, setError] = useState('');
   const [requestStatus, setRequestStatus] = useState({});
   const [friendRequestsCount, setFriendRequestsCount] = useState(0);
+  const [showRemoveAlert, setShowRemoveAlert] = useState(false);
+  const [friendToRemove, setFriendToRemove] = useState(null);
+  const [showLogoutAlert, setShowLogoutAlert] = useState(false);
   const navigate = useNavigate();
 
   const searchUsers = useCallback(async () => {
@@ -106,12 +111,73 @@ const GlobalSearch = () => {
     }
   };
 
+  const handleRemoveFriend = (user) => {
+    setFriendToRemove(user);
+    setShowRemoveAlert(true);
+  };
+
+  const confirmRemoveFriend = async () => {
+    if (!friendToRemove) return;
+
+    try {
+      const response = await axios.post(
+        'http://localhost:5000/api/remove-friend',
+        { friendId: friendToRemove.profileId },
+        { withCredentials: true }
+      );
+
+      if (response.data.success) {
+        // Remove friend from search results
+        setSearchResults(prevResults => 
+          prevResults.filter(user => user.profileId !== friendToRemove.profileId)
+        );
+        
+        console.log(`✅ Friend ${friendToRemove.username} removed successfully`);
+      } else {
+        setError(response.data.message || 'Failed to remove friend');
+      }
+    } catch (error) {
+      console.error('Error removing friend:', error);
+      if (error.response?.status === 401) {
+        navigate('/login');
+        return;
+      }
+      setError(error.response?.data?.message || 'Failed to remove friend');
+    } finally {
+      setShowRemoveAlert(false);
+      setFriendToRemove(null);
+    }
+  };
+
+  const cancelRemoveFriend = () => {
+    setShowRemoveAlert(false);
+    setFriendToRemove(null);
+  };
+
   const getActionButton = (user) => {
     const status = requestStatus[user.profileId];
     
     switch (user.status) {
       case 'already_friends':
-        return <Badge className="badge-modern">Friends</Badge>;
+        return (
+          <div className="d-flex align-items-center gap-2">
+            <Badge className="badge-modern">Friends</Badge>
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={() => handleRemoveFriend(user)}
+              title="Remove friend"
+              style={{ 
+                padding: '4px 8px',
+                fontSize: '12px',
+                border: '1px solid var(--brand-primary)',
+                color: 'var(--brand-primary)'
+              }}
+            >
+              ✕
+            </Button>
+          </div>
+        );
       case 'request_sent':
         return <Badge className="badge-modern" style={{ background: 'var(--warning-color)' }}>Request Sent</Badge>;
       default:
@@ -146,7 +212,11 @@ const GlobalSearch = () => {
     }
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    setShowLogoutAlert(true);
+  };
+
+  const confirmLogout = async () => {
     try {
       await fetch('http://localhost:5000/api/auth/logout', {
         method: 'POST',
@@ -159,7 +229,13 @@ const GlobalSearch = () => {
       console.error('Error during logout:', error);
       localStorage.clear();
       navigate('/login');
+    } finally {
+      setShowLogoutAlert(false);
     }
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutAlert(false);
   };
 
 
@@ -171,7 +247,8 @@ const GlobalSearch = () => {
           <Col>
             <div className="modern-header d-flex justify-content-between align-items-center p-3">
               <div className="d-flex align-items-center">
-                <h4 className="modern-logo mb-0 me-3">🔍 Global User Search</h4>
+                <img src={Logo} alt="Sparrow Logo" className="app-logo" style={{ width: '40px', height: '40px', marginRight: '12px' }} />
+                <h4 className="modern-logo mb-0 me-3">Sparrow</h4>
                 <Badge className="badge-modern" style={{ background: 'var(--info-color)' }}>Find new friends</Badge>
               </div>
               <div className="d-flex align-items-center">
@@ -218,14 +295,16 @@ const GlobalSearch = () => {
                     <UserSearchIcon size={20} className="me-2" />
                     Search All Users
                   </Form.Label>
-                  <Form.Control
-                    type="text"
-                    placeholder="🔍 Enter username to search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="search-input"
-                    size="lg"
-                  />
+                  <div className="simple-search-container">
+                    <Form.Control
+                      type="text"
+                      placeholder="Enter username to search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="simple-search-input"
+                      size="lg"
+                    />
+                  </div>
                   <Form.Text style={{ color: 'var(--text-secondary)' }}>
                     Enter at least 2 characters to search for users
                   </Form.Text>
@@ -283,18 +362,8 @@ const GlobalSearch = () => {
                           </div>
                           <div>
                             <div className="friend-name">{user.username}</div>
-                            <div className="friend-status">
-                              {user.fullName || user.username}
-                              {user.isOnline ? (
-                                <span className="status-online ms-1">
-                                  <span className="online-indicator"></span>
-                                  Online
-                                </span>
-                              ) : (
-                                <span className="status-offline ms-1">
-                                  Last seen: {user.lastSeen ? new Date(user.lastSeen).toLocaleString() : 'Unknown'}
-                                </span>
-                              )}
+                            <div className="friend-status text-muted">
+                              Username: {user.username}
                             </div>
                           </div>
                         </div>
@@ -325,6 +394,30 @@ const GlobalSearch = () => {
             </div>
           </Col>
         </Row>
+
+        {/* Remove Friend Confirmation Alert */}
+        <CustomAlert
+          show={showRemoveAlert}
+          title="Remove Friend"
+          message={`Are you sure you want to remove ${friendToRemove?.username} from your friends? This action cannot be undone.`}
+          confirmText="Remove"
+          cancelText="Cancel"
+          variant="primary"
+          onConfirm={confirmRemoveFriend}
+          onCancel={cancelRemoveFriend}
+        />
+
+        {/* Logout Confirmation Alert */}
+        <CustomAlert
+          show={showLogoutAlert}
+          title="Logout"
+          message="Are you sure you want to logout? You will be redirected to the login page."
+          confirmText="Logout"
+          cancelText="Cancel"
+          variant="primary"
+          onConfirm={confirmLogout}
+          onCancel={cancelLogout}
+        />
       </Container>
     </div>
   );

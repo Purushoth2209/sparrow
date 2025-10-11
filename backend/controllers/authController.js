@@ -21,6 +21,78 @@ function generateUsernameSuggestions(baseUsername) {
     return Array.from(suggestions).slice(0, 5);
 }
 
+/**
+ * Generate a unique username for Google OAuth users
+ * @param {Object} userInfo - User information from Google
+ * @returns {Promise<string>} - Unique username
+ */
+async function generateUniqueUsernameForGoogle(userInfo) {
+    const { fullName, email, providerId } = userInfo;
+    
+    // Try different strategies to create a username
+    const strategies = [];
+    
+    // Strategy 1: Use full name if available
+    if (fullName) {
+        const nameBased = fullName.toLowerCase()
+            .replace(/[^a-z0-9\s]/g, '')
+            .replace(/\s+/g, '_')
+            .substring(0, 20);
+        if (nameBased.length >= 3) {
+            strategies.push(nameBased);
+        }
+    }
+    
+    // Strategy 2: Use email prefix
+    if (email) {
+        const emailPrefix = email.split('@')[0]
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, '')
+            .substring(0, 15);
+        if (emailPrefix.length >= 3) {
+            strategies.push(emailPrefix);
+        }
+    }
+    
+    // Strategy 3: Use provider ID with user prefix
+    if (providerId) {
+        strategies.push(`user_${providerId.substring(0, 8)}`);
+    }
+    
+    // Strategy 4: Fallback with timestamp
+    strategies.push(`user_${Date.now().toString().slice(-8)}`);
+    
+    // Try each strategy until we find a unique username
+    for (const baseUsername of strategies) {
+        let username = baseUsername;
+        let counter = 1;
+        
+        while (true) {
+            try {
+                const existing = await User.findOne({ username });
+                if (!existing) {
+                    return username;
+                }
+                
+                // If username exists, try with a number suffix
+                username = `${baseUsername}_${counter}`;
+                counter++;
+                
+                // Prevent infinite loop
+                if (counter > 999) {
+                    break;
+                }
+            } catch (error) {
+                console.error('Error checking username uniqueness:', error);
+                break;
+            }
+        }
+    }
+    
+    // Ultimate fallback
+    return `user_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+}
+
 exports.checkUsername = async (req, res) => {
     const { username } = req.query;
     if (!username || typeof username !== 'string') {
@@ -287,6 +359,8 @@ exports.logoutUser = async (req, res) => {
         // Get profileId from session or request body
         const profileId = req.session?.user?.profileId || req.body?.profileId;
 
+        console.log('🚪 User logout request:', profileId);
+
         if (profileId) {
             // Disconnect Socket.IO connection
             const socketId = userSockets.get(profileId);
@@ -295,32 +369,48 @@ exports.logoutUser = async (req, res) => {
                     const socket = io.sockets.sockets.get(socketId);
                     if (socket) {
                         socket.disconnect();
+                        console.log('🔌 Socket disconnected for user:', profileId);
                     }
                 }
                 userSockets.delete(profileId);
+                console.log('👤 User removed from active sockets:', profileId);
             }
         }
 
         // Destroy session (works for both Google OAuth and email/phone login)
-        req.session.destroy((err) => {
-            if (err) {
-                console.error('❌ Logout error:', err);
-                return res.status(500).json({ 
-                    success: false, 
-                    message: 'Logout failed' 
-                });
-            }
+        if (req.session) {
+            req.session.destroy((err) => {
+                if (err) {
+                    console.error('❌ Session destroy error:', err);
+                    return res.status(500).json({ 
+                        success: false, 
+                        message: 'Logout failed' 
+                    });
+                }
 
-            // Clear session cookie
+                // Clear session cookie
+                res.clearCookie('connect.sid');
+                res.clearCookie('sparrow.sid'); // Clear custom session cookie too
+                
+                console.log('✅ User logged out, session destroyed');
+                
+                res.status(200).json({ 
+                    success: true, 
+                    message: 'Logout successful' 
+                });
+            });
+        } else {
+            // No session to destroy, just clear cookies and respond
             res.clearCookie('connect.sid');
+            res.clearCookie('sparrow.sid');
             
-            console.log('✅ User logged out, session destroyed');
+            console.log('✅ Logout completed (no session found)');
             
             res.status(200).json({ 
                 success: true, 
                 message: 'Logout successful' 
             });
-        });
+        }
     } catch (error) {
         console.error('❌ Logout error:', error);
         res.status(500).json({ 
@@ -433,21 +523,22 @@ exports.googleCallback = async (req, res) => {
     });
 
     if (!user) {
-      // New user - create account
+      // New user - create temporary account without username
       user = new User({
         fullName: userInfo.fullName,
         email: userInfo.email,
         phoneNumber: undefined,
         password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10),
         profileId: `google-${userInfo.providerId}`,
-        username: userInfo.email ? userInfo.email.split('@')[0] : `user_${userInfo.providerId}`,
+        username: `temp_${userInfo.providerId}`, // Temporary username, user will set real one
         profileImage: userInfo.picture,
         isOnline: false,
         socketId: null,
         passwordChangedAt: new Date(),
+        needsUsernameSetup: true, // Flag to indicate user needs to set username
       });
       
-      console.log('✅ New Google user created:', user.username);
+      console.log('✅ New Google user created, needs username setup');
     } else {
       // Existing user - update profile
       user.fullName = userInfo.fullName || user.fullName;
@@ -475,8 +566,14 @@ exports.googleCallback = async (req, res) => {
 
     console.log('✅ Google authentication successful, session created');
 
-    // Redirect directly to chat page
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/friends`);
+    // Redirect based on whether user needs username setup
+    if (user.needsUsernameSetup) {
+      // New user - redirect to username setup page
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/setup-username`);
+    } else {
+      // Existing user - redirect to chat page
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/friends`);
+    }
 
   } catch (error) {
     console.error('❌ Google callback failed:', error);
@@ -487,6 +584,78 @@ exports.googleCallback = async (req, res) => {
 
     // Redirect to login with error flag
     res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=auth_failed`);
+  }
+};
+
+/**
+ * Set Username for Google OAuth Users
+ * 
+ * Allows new Google OAuth users to set their username after authentication.
+ * 
+ * @route POST /api/auth/set-username
+ */
+exports.setUsername = async (req, res) => {
+  try {
+    const { username } = req.body;
+    const profileId = req.session?.user?.profileId;
+
+    if (!profileId) {
+      return res.status(401).json({ 
+        success: false, 
+        message: 'User not authenticated' 
+      });
+    }
+
+    if (!username || typeof username !== 'string' || username.trim().length < 3) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Username must be at least 3 characters long' 
+      });
+    }
+
+    const trimmedUsername = username.trim();
+
+    // Check if username is available
+    const existingUser = await User.findOne({ username: trimmedUsername });
+    if (existingUser) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Username is already taken',
+        suggestions: generateUsernameSuggestions(trimmedUsername)
+      });
+    }
+
+    // Find the current user
+    const user = await User.findOne({ profileId });
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Update username and clear the setup flag
+    user.username = trimmedUsername;
+    user.needsUsernameSetup = false;
+    await user.save();
+
+    // Update session
+    req.session.user.username = trimmedUsername;
+
+    console.log('✅ Username set for Google OAuth user:', trimmedUsername);
+
+    res.json({ 
+      success: true, 
+      message: 'Username set successfully',
+      user: req.session.user
+    });
+
+  } catch (error) {
+    console.error('❌ Set username error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error' 
+    });
   }
 };
 

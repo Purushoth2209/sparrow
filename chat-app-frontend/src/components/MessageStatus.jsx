@@ -19,15 +19,15 @@ const MessageStatus = ({ status, timestamp }) => {
   const getStatusColor = () => {
     switch (status) {
       case 'sending':
-        return '#d97706'; // Orange for sending
+        return 'var(--message-sending-color)'; // Brand orange
       case 'sent':
-        return '#374151'; // Dark Gray for better visibility
+        return 'var(--message-sent-color)'; // Brand gray
       case 'delivered':
-        return '#374151'; // Dark Gray for better visibility
+        return 'var(--message-delivered-color)'; // Brand gray
       case 'read':
-        return '#059669'; // Dark Green for better visibility
+        return 'var(--message-read-color)'; // Brand green
       default:
-        return '#374151';
+        return 'var(--message-sent-color)';
     }
   };
 

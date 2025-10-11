@@ -20,7 +20,8 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3000', // React frontend
   credentials: true,               // Allow cookies to be sent (required for sessions)
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'Cache-Control', 'Pragma'],
+  optionsSuccessStatus: 200,       // Some legacy browsers (IE11, various SmartTVs) choke on 204
 }));
 
 
@@ -39,15 +40,19 @@ app.use(
     saveUninitialized: false,
     // Use memory store for development (in production, use Redis or MongoDB)
     store: new (require('express-session').MemoryStore)(),
+    // Set session name to avoid conflicts
+    name: 'sparrow.sid',
     cookie: {
       // Session expires after 7 days
       maxAge: 7 * 24 * 60 * 60 * 1000,
       // HttpOnly prevents client-side JS from reading cookie (security)
       httpOnly: true,
-      // SameSite prevents CSRF attacks
-      sameSite: 'lax',
+      // SameSite prevents CSRF attacks - use 'none' for cross-site requests
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       // Secure requires HTTPS (set to true in production with HTTPS)
       secure: process.env.NODE_ENV === 'production',
+      // Domain for cookie (leave undefined for localhost)
+      domain: process.env.NODE_ENV === 'production' ? process.env.COOKIE_DOMAIN : undefined,
     },
   })
 );

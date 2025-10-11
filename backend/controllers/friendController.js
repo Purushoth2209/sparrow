@@ -57,10 +57,7 @@ exports.searchGlobal = async (req, res) => {
       return {
         profileId: user.profileId,
         username: user.username,
-        fullName: user.fullName,
         profileImage: user.profileImage,
-        isOnline: user.isOnline,
-        lastSeen: user.lastSeen,
         status: status
       };
     });
@@ -446,6 +443,76 @@ exports.getFriends = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       message: 'Server error while fetching friends' 
+    });
+  }
+};
+
+/**
+ * Remove Friend
+ * 
+ * @route POST /api/remove-friend
+ * @access Private
+ * @param {string} friendId - Profile ID of friend to remove
+ * @returns {Object} Success/failure message
+ */
+exports.removeFriend = async (req, res) => {
+  try {
+    const { friendId } = req.body;
+    const currentUserId = req.user.profileId;
+
+    if (!friendId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Friend ID is required' 
+      });
+    }
+
+    if (currentUserId === friendId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Cannot remove yourself as a friend' 
+      });
+    }
+
+    // Find both users
+    const currentUser = await User.findOne({ profileId: currentUserId });
+    const friendUser = await User.findOne({ profileId: friendId });
+
+    if (!currentUser || !friendUser) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
+      });
+    }
+
+    // Check if they are actually friends
+    if (!currentUser.friends.includes(friendId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'This user is not your friend' 
+      });
+    }
+
+    // Remove friend from both users' friends arrays
+    currentUser.friends = currentUser.friends.filter(id => id !== friendId);
+    friendUser.friends = friendUser.friends.filter(id => id !== currentUserId);
+
+    // Save both users
+    await currentUser.save();
+    await friendUser.save();
+
+    console.log(`✅ Friend removed: ${currentUser.username} removed ${friendUser.username}`);
+
+    res.json({ 
+      success: true, 
+      message: 'Friend removed successfully' 
+    });
+
+  } catch (error) {
+    console.error('❌ Remove friend error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error while removing friend' 
     });
   }
 };

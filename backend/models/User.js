@@ -64,6 +64,8 @@ const userSchema = new mongoose.Schema({
   lastLoginAttempt: { type: Date, default: null },
   // Password security
   passwordChangedAt: { type: Date, default: null },
+  // Username setup flag for Google OAuth users
+  needsUsernameSetup: { type: Boolean, default: false },
   // Note: Using session-based authentication, no need for refresh tokens
 });
 

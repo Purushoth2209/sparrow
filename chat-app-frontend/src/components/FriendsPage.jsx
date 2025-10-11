@@ -6,8 +6,10 @@ import io from 'socket.io-client';
 import UserSearchIcon from './icons/UserSearchIcon';
 import FriendRequestIcon from './icons/FriendRequestIcon';
 import LogoutIcon from '../Logout.png';
+import Logo from '../Logo.png';
 import FriendRequests from './FriendRequests';
 import MessageStatus from './MessageStatus';
+import CustomAlert from './CustomAlert';
 import './styles/modern-theme.css';
 
 const socket = io('http://localhost:5000');
@@ -25,6 +27,9 @@ const FriendsPage = () => {
   const [showFriendRequests, setShowFriendRequests] = useState(false);
   const [currentFriend, setCurrentFriend] = useState(null);
   const [messages, setMessages] = useState({});
+  const [showRemoveAlert, setShowRemoveAlert] = useState(false);
+  const [friendToRemove, setFriendToRemove] = useState(null);
+  const [showLogoutAlert, setShowLogoutAlert] = useState(false);
   const navigate = useNavigate();
 
   const fetchFriends = useCallback(async () => {
@@ -164,7 +169,7 @@ const FriendsPage = () => {
         console.log('📖 Auto-marking received message as read (current chat)');
         setTimeout(() => {
           markMessagesAsRead(message.senderId);
-        }, 500); // Small delay to ensure message is processed
+        }, 100); // Reduced delay for faster response
       } else {
         // Update unread count for friends
         setFriends(prevFriends =>
@@ -297,6 +302,57 @@ const FriendsPage = () => {
     }
   };
 
+  // Auto-mark messages as read when chat is visible and user is active
+  useEffect(() => {
+    if (!currentFriend) return;
+
+    // Mark as read immediately when friend is selected
+    markMessagesAsRead(currentFriend.profileId);
+
+    // Mark as read when page becomes visible (user switches back to tab)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && currentFriend) {
+        markMessagesAsRead(currentFriend.profileId);
+      }
+    };
+
+    // Mark as read when user scrolls to bottom of chat (messages are visible)
+    const handleScroll = () => {
+      const chatMessages = document.querySelector('.chat-messages');
+      if (chatMessages) {
+        const { scrollTop, scrollHeight, clientHeight } = chatMessages;
+        // If user is at or near the bottom of the chat
+        if (scrollTop + clientHeight >= scrollHeight - 100) {
+          markMessagesAsRead(currentFriend.profileId);
+        }
+      }
+    };
+
+    // Periodic check to mark messages as read when chat is visible
+    const periodicMarkAsRead = setInterval(() => {
+      if (document.visibilityState === 'visible' && currentFriend) {
+        markMessagesAsRead(currentFriend.profileId);
+      }
+    }, 2000); // Check every 2 seconds
+
+    // Add event listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    const chatMessagesElement = document.querySelector('.chat-messages');
+    if (chatMessagesElement) {
+      chatMessagesElement.addEventListener('scroll', handleScroll);
+    }
+
+    // Cleanup
+    return () => {
+      clearInterval(periodicMarkAsRead);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (chatMessagesElement) {
+        chatMessagesElement.removeEventListener('scroll', handleScroll);
+      }
+    };
+  }, [currentFriend]);
+
   const updateMessageStatus = (messageId, newStatus) => {
     console.log(`🔄 Manually updating message ${messageId} to status: ${newStatus}`);
     setMessages(prev => {
@@ -411,7 +467,66 @@ const FriendsPage = () => {
     }
   };
 
-  const handleLogout = async () => {
+  const handleRemoveFriend = (friend) => {
+    setFriendToRemove(friend);
+    setShowRemoveAlert(true);
+  };
+
+  const confirmRemoveFriend = async () => {
+    if (!friendToRemove) return;
+
+    try {
+      const response = await axios.post(
+        'http://localhost:5000/api/remove-friend',
+        { friendId: friendToRemove.profileId },
+        { withCredentials: true }
+      );
+
+      if (response.data.success) {
+        // Remove friend from local state
+        setFriends(prevFriends => prevFriends.filter(f => f.profileId !== friendToRemove.profileId));
+        setFilteredFriends(prevFriends => prevFriends.filter(f => f.profileId !== friendToRemove.profileId));
+        
+        // If the removed friend was currently selected, clear the selection
+        if (currentFriend?.profileId === friendToRemove.profileId) {
+          setCurrentFriend(null);
+          setMessages({});
+        }
+
+        // Remove messages with this friend
+        setMessages(prevMessages => {
+          const newMessages = { ...prevMessages };
+          delete newMessages[friendToRemove.profileId];
+          return newMessages;
+        });
+
+        console.log(`✅ Friend ${friendToRemove.username} removed successfully`);
+      } else {
+        setError(response.data.message || 'Failed to remove friend');
+      }
+    } catch (error) {
+      console.error('Error removing friend:', error);
+      if (error.response?.status === 401) {
+        navigate('/login');
+        return;
+      }
+      setError(error.response?.data?.message || 'Failed to remove friend');
+    } finally {
+      setShowRemoveAlert(false);
+      setFriendToRemove(null);
+    }
+  };
+
+  const cancelRemoveFriend = () => {
+    setShowRemoveAlert(false);
+    setFriendToRemove(null);
+  };
+
+  const handleLogout = () => {
+    setShowLogoutAlert(true);
+  };
+
+  const confirmLogout = async () => {
     try {
       console.log('🚪 User logging out...');
       
@@ -449,7 +564,13 @@ const FriendsPage = () => {
       socket.disconnect();
       localStorage.clear();
       navigate('/login');
+    } finally {
+      setShowLogoutAlert(false);
     }
+  };
+
+  const cancelLogout = () => {
+    setShowLogoutAlert(false);
   };
 
   const handleRequestHandled = () => {
@@ -467,7 +588,8 @@ const FriendsPage = () => {
           <Col>
             <div className="modern-header d-flex justify-content-between align-items-center p-3">
               <div className="d-flex align-items-center">
-                <h4 className="modern-logo mb-0 me-3">💬 Friends & Chat</h4>
+                <img src={Logo} alt="Sparrow Logo" className="app-logo" style={{ width: '40px', height: '40px', marginRight: '12px' }} />
+                <h4 className="modern-logo mb-0 me-3">Sparrow</h4>
                 <Badge className="badge-modern">{friends.length} friends</Badge>
               </div>
               <div className="d-flex align-items-center">
@@ -629,6 +751,7 @@ const FriendsPage = () => {
                 messages={messages[currentFriend.profileId] || []}
                 onSendMessage={handleSendMessage}
                 onCloseChat={() => setCurrentFriend(null)}
+                onRemoveFriend={handleRemoveFriend}
               />
             ) : (
               <div className="d-flex align-items-center justify-content-center h-100">
@@ -648,13 +771,37 @@ const FriendsPage = () => {
           onHide={() => setShowFriendRequests(false)}
           onRequestHandled={handleRequestHandled}
         />
+
+        {/* Remove Friend Confirmation Alert */}
+        <CustomAlert
+          show={showRemoveAlert}
+          title="Remove Friend"
+          message={`Are you sure you want to remove ${friendToRemove?.username} from your friends? This action cannot be undone.`}
+          confirmText="Remove"
+          cancelText="Cancel"
+          variant="primary"
+          onConfirm={confirmRemoveFriend}
+          onCancel={cancelRemoveFriend}
+        />
+
+        {/* Logout Confirmation Alert */}
+        <CustomAlert
+          show={showLogoutAlert}
+          title="Logout"
+          message="Are you sure you want to logout? You will be redirected to the login page."
+          confirmText="Logout"
+          cancelText="Cancel"
+          variant="primary"
+          onConfirm={confirmLogout}
+          onCancel={cancelLogout}
+        />
       </Container>
     </div>
   );
 };
 
 // Chat Area Component
-const ChatArea = ({ friend, messages, onSendMessage, onCloseChat }) => {
+const ChatArea = ({ friend, messages, onSendMessage, onCloseChat, onRemoveFriend }) => {
   const [message, setMessage] = useState('');
 
   const handleSend = () => {
@@ -735,13 +882,30 @@ const ChatArea = ({ friend, messages, onSendMessage, onCloseChat }) => {
               </small>
             </div>
           </div>
-          <Button
-            className="btn-modern-icon"
-            onClick={onCloseChat}
-            title="Close chat (Escape)"
-          >
-            ✕
-          </Button>
+          <div className="d-flex align-items-center">
+            <Button
+              variant="outline-primary"
+              size="sm"
+              onClick={() => onRemoveFriend(friend)}
+              title="Remove friend"
+              className="me-2"
+              style={{ 
+                padding: '6px 12px',
+                fontSize: '12px',
+                border: '1px solid var(--brand-primary)',
+                color: 'var(--brand-primary)'
+              }}
+            >
+              Remove Friend
+            </Button>
+            <Button
+              className="btn-modern-icon"
+              onClick={onCloseChat}
+              title="Close chat (Escape)"
+            >
+              ✕
+            </Button>
+          </div>
         </div>
       </div>
 

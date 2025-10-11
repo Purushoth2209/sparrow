@@ -1,5 +1,5 @@
 import React from 'react';
-import './styles/GoogleOAuthButton.css';
+import './styles/modern-theme.css';
 
 /**
  * Google OAuth Sign-In Button
@@ -28,7 +28,7 @@ const GoogleOAuthButton = ({ text = 'Continue with Google', className = '' }) =>
     <button 
       type="button" 
       onClick={handleGoogleLogin} 
-      className={`google-oauth-btn ${className}`}
+      className={`google-oauth-button ${className}`}
     >
       <svg 
         className="google-icon" 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import io from 'socket.io-client';
-import './styles/Login.css';
+import './styles/modern-theme.css';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Logo from "../Logo.png";
 import PasswordField from './PasswordField';
@@ -80,12 +80,13 @@ const Login = () => {
   };
 
   return (
-    <div className="login-container">
-      <div className="logo-container">
-        <img src={Logo} alt="App Logo" className="app-logo" />
-        <h1 className="app-title">Sparrow</h1>
-      </div>
-      <h2 className="greeting-text">Welcome Back! Please Login to Continue</h2>
+    <div className="modern-app">
+      <div className="login-container">
+        <div className="logo-container">
+          <img src={Logo} alt="App Logo" className="app-logo" />
+          <h1 className="app-title">Sparrow</h1>
+        </div>
+        <h2 className="greeting-text">Welcome Back! Please Login to Continue</h2>
       
       {/* Google OAuth Sign-In */}
       <div className="oauth-section">
@@ -95,25 +96,31 @@ const Login = () => {
       {/* Divider */}
       <div className="auth-divider">OR</div>
 
-      {/* Email/Phone/Username Login */}
-      <form onSubmit={handleLogin} className="login-form">
-        <input
-          type="text"
-          placeholder="Email, Phone, or Username"
-          value={identifier}
-          onChange={(e) => setIdentifier(e.target.value)}
-          className="login-input"
-        />
-        <PasswordField
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          inputClassName="login-input"
-          containerClassName="password-field"
-        />
-        <button type="submit" className="login-btn">Login</button>
-      </form>
-      <div className="signup-link">
-        <a href="/signup">Don't have an account? Sign up</a>
+        {/* Email/Phone/Username Login */}
+        <form onSubmit={handleLogin} className="login-form">
+          <input
+            type="text"
+            placeholder="Email, Phone, or Username"
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
+            className="login-input"
+          />
+          <PasswordField
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            inputClassName="login-input"
+            containerClassName="password-field"
+          />
+          <button 
+            type="submit" 
+            className="login-btn"
+          >
+            Login
+          </button>
+        </form>
+        <div className="signup-link">
+          <a href="/signup">Don't have an account? Sign up</a>
+        </div>
       </div>
     </div>
   );

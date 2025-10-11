@@ -78,4 +78,14 @@ router.post('/reject-request', ensureAuthenticated, friendController.rejectFrien
  */
 router.get('/friends', ensureAuthenticated, friendController.getFriends);
 
+/**
+ * Remove Friend
+ * 
+ * @route   POST /api/remove-friend
+ * @access  Private
+ * @body    {string} friendId - Profile ID of friend to remove
+ * @returns {Object} Success/failure message
+ */
+router.post('/remove-friend', ensureAuthenticated, friendController.removeFriend);
+
 module.exports = router;

@@ -112,7 +112,7 @@ const FriendRequests = ({ show, onHide, onRequestHandled }) => {
         <div>
           <Button 
             size="sm" 
-            variant="success"
+            variant="primary"
             onClick={() => handleAcceptRequest(request.fromUserId)}
             className="me-2"
           >
@@ -120,7 +120,7 @@ const FriendRequests = ({ show, onHide, onRequestHandled }) => {
           </Button>
           <Button 
             size="sm" 
-            variant="danger"
+            variant="primary"
             onClick={() => handleRejectRequest(request.fromUserId)}
           >
             Retry Reject
@@ -133,7 +133,7 @@ const FriendRequests = ({ show, onHide, onRequestHandled }) => {
       <div>
         <Button 
           size="sm" 
-          variant="success"
+          variant="primary"
           onClick={() => handleAcceptRequest(request.fromUserId)}
           className="me-2"
         >
@@ -141,7 +141,7 @@ const FriendRequests = ({ show, onHide, onRequestHandled }) => {
         </Button>
         <Button 
           size="sm" 
-          variant="danger"
+          variant="primary"
           onClick={() => handleRejectRequest(request.fromUserId)}
         >
           Reject
@@ -229,7 +229,7 @@ const FriendRequests = ({ show, onHide, onRequestHandled }) => {
         )}
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="secondary" onClick={handleClose}>
+        <Button variant="primary" onClick={handleClose}>
           Close
         </Button>
       </Modal.Footer>
