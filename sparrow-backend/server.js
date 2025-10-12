@@ -38,11 +38,20 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'Cache-Control', 'Pragma'],
   optionsSuccessStatus: 200,       // Some legacy browsers (IE11, various SmartTVs) choke on 204
+  exposedHeaders: ['set-cookie'],  // Expose set-cookie header to client
 }));
 
 
 // Parse JSON request bodies
 app.use(bodyParser.json());
+
+// Debug middleware to log cookie headers
+app.use((req, res, next) => {
+  console.log('🍪 Request cookies:', req.headers.cookie);
+  console.log('🍪 Request origin:', req.headers.origin);
+  console.log('🍪 Request user-agent:', req.headers['user-agent']);
+  next();
+});
 
 // Configure express-session for OIDC authentication
 // This manages user sessions and stores session data
@@ -66,11 +75,11 @@ app.use(
       // HttpOnly prevents client-side JS from reading cookie (security)
       httpOnly: true,
       // SameSite prevents CSRF attacks - use 'none' for cross-site requests
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      sameSite: 'none',
       // Secure requires HTTPS (set to true in production with HTTPS)
-      secure: process.env.NODE_ENV === 'production',
+      secure: true,
       // Domain for cookie (leave undefined for cross-origin requests)
-      domain: process.env.COOKIE_DOMAIN || undefined, // Use env var if set, otherwise undefined
+      domain: undefined, // Always undefined for cross-origin
     },
   })
 );
