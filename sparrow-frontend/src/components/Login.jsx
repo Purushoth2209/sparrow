@@ -68,7 +68,7 @@ const Login = () => {
           socket.emit('setUser', data.user.profileId);
         }
 
-        console.log('✅ Login successful, JWT token created');
+        console.log('✅ Login successful, JWT token created - v2.0');
 
         // Navigate to chat
         navigate('/friends');
