@@ -53,6 +53,29 @@ app.use((req, res, next) => {
   next();
 });
 
+// Custom middleware to handle cross-origin cookie setting
+app.use((req, res, next) => {
+  // Store the original res.cookie function
+  const originalCookie = res.cookie;
+  
+  // Override res.cookie to add additional headers for cross-origin
+  res.cookie = function(name, value, options) {
+    // Call the original cookie function
+    originalCookie.call(this, name, value, options);
+    
+    // Add explicit headers for cross-origin cookie support
+    if (req.headers.origin) {
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Allow-Origin', req.headers.origin);
+      console.log('🍪 Setting cross-origin cookie:', name, 'for origin:', req.headers.origin);
+    }
+    
+    return this;
+  };
+  
+  next();
+});
+
 // Configure express-session for OIDC authentication
 // This manages user sessions and stores session data
 app.use(
@@ -74,8 +97,8 @@ app.use(
       maxAge: 7 * 24 * 60 * 60 * 1000,
       // HttpOnly prevents client-side JS from reading cookie (security)
       httpOnly: true,
-      // SameSite prevents CSRF attacks - use 'none' for cross-site requests
-      sameSite: 'none',
+      // SameSite prevents CSRF attacks - use 'lax' for better cross-origin support
+      sameSite: 'lax',
       // Secure requires HTTPS (set to true in production with HTTPS)
       secure: true,
       // Domain for cookie (leave undefined for cross-origin requests)
