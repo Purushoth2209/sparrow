@@ -16,8 +16,24 @@ const app = express();
 const server = http.createServer(app);
 
 // Enable CORS with credentials support for session-based auth
+const allowedOrigins = [
+  process.env.FRONTEND_URL || 'http://localhost:3000',
+  'https://sparrow-frontend-sigma.vercel.app', // Your Vercel frontend
+  'http://localhost:3000' // Local development
+].filter(Boolean); // Remove any undefined values
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000', // React frontend
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log('❌ CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,               // Allow cookies to be sent (required for sessions)
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token', 'Cache-Control', 'Pragma'],
@@ -52,6 +68,7 @@ app.use(
       // Secure requires HTTPS (set to true in production with HTTPS)
       secure: process.env.NODE_ENV === 'production',
       // Domain for cookie (leave undefined for cross-origin requests)
+      domain: process.env.COOKIE_DOMAIN || undefined, // Use env var if set, otherwise undefined
     },
   })
 );
