@@ -3,6 +3,7 @@ require('dotenv').config(); // Import dotenv to load environment variables
 const bcrypt = require('bcryptjs');
 const dns = require('dns').promises;
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
+const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { userSockets, io } = require('../socketio');
 
@@ -335,8 +336,8 @@ exports.loginUser = async (req, res) => {
         user.lastLoginAttempt = new Date();
         await user.save();
 
-        // Create session (stateful authentication)
-        req.session.user = {
+        // Create JWT token (stateless authentication)
+        const userPayload = {
             profileId: user.profileId,
             username: user.username,
             email: user.email || null,
@@ -345,14 +346,8 @@ exports.loginUser = async (req, res) => {
             profileImage: user.profileImage || '',
         };
 
-        // Debug session creation
-        console.log('🔍 Session ID after login:', req.sessionID);
-        console.log('🔍 Session user set:', !!req.session.user);
-        console.log('🔍 Session cookie config:', {
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-            httpOnly: true,
-            domain: process.env.COOKIE_DOMAIN || undefined
+        const token = jwt.sign(userPayload, process.env.JWT_SECRET, { 
+            expiresIn: '7d' // Token expires in 7 days
         });
 
         // ===== SECURITY: Password expiry warning (optional) =====
@@ -364,20 +359,12 @@ exports.loginUser = async (req, res) => {
             }
         }
 
-        console.log('✅ Login successful, session created for:', user.username);
-
-        // Force session save to ensure it's persisted
-        req.session.save((err) => {
-            if (err) {
-                console.error('❌ Session save error:', err);
-            } else {
-                console.log('✅ Session saved successfully');
-            }
-        });
+        console.log('✅ Login successful, JWT token created for:', user.username);
 
         res.status(200).json({ 
             success: true,
-            user: req.session.user,
+            token: token,
+            user: userPayload,
             message: 'Login successful',
             passwordWarning
         });

@@ -55,20 +55,20 @@ const Login = () => {
       );
 
       if (data.success) {
-        // Store user info in localStorage for convenience
+        // Store user info and JWT token in localStorage
         localStorage.setItem('profileId', data.user.profileId);
         localStorage.setItem('username', data.user.username);
         localStorage.setItem('email', data.user.email || '');
         localStorage.setItem('fullName', data.user.fullName || '');
         localStorage.setItem('profileImage', data.user.profileImage || '');
-        localStorage.setItem('token', 'session-authenticated'); // Flag for PrivateRoute
+        localStorage.setItem('token', data.token); // Store JWT token
 
         // Connect to Socket.IO
         if (socket) {
           socket.emit('setUser', data.user.profileId);
         }
 
-        console.log('✅ Login successful, session created');
+        console.log('✅ Login successful, JWT token created');
 
         // Navigate to chat
         navigate('/friends');

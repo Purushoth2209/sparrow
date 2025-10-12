@@ -28,6 +28,7 @@ const PrivateRoute = ({ element: Component, ...rest }) => {
             credentials: 'include',
             headers: { 
               'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
               'Cache-Control': 'no-cache',
               'Pragma': 'no-cache'
             },
@@ -46,7 +47,7 @@ const PrivateRoute = ({ element: Component, ...rest }) => {
               localStorage.setItem('email', data.user.email || '');
               localStorage.setItem('fullName', data.user.fullName || '');
               localStorage.setItem('profileImage', data.user.profileImage || '');
-              localStorage.setItem('token', 'session-authenticated');
+              localStorage.setItem('token', token);
               setIsAuthenticated(true);
             } else {
               console.log('❌ Invalid session data, clearing local storage');
@@ -97,7 +98,7 @@ const PrivateRoute = ({ element: Component, ...rest }) => {
               localStorage.setItem('email', data.user.email || '');
               localStorage.setItem('fullName', data.user.fullName || '');
               localStorage.setItem('profileImage', data.user.profileImage || '');
-              localStorage.setItem('token', 'session-authenticated');
+              localStorage.setItem('token', token);
               setIsAuthenticated(true);
             } else {
               console.log('❌ No valid session found');
