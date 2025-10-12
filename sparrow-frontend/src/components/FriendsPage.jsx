@@ -37,9 +37,15 @@ const FriendsPage = () => {
     setError('');
     
     try {
+      const token = localStorage.getItem('token');
       const response = await axios.get(
         `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/search-friends${searchQuery ? `?username=${encodeURIComponent(searchQuery)}` : ''}`,
-        { withCredentials: true }
+        { 
+          withCredentials: true,
+          headers: {
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          }
+        }
       );
       
       if (response.data.success) {
@@ -65,9 +71,15 @@ const FriendsPage = () => {
 
   const fetchFriendRequestsCount = useCallback(async () => {
     try {
+      const token = localStorage.getItem('token');
       const response = await axios.get(
         `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/friend-requests`,
-        { withCredentials: true }
+        { 
+          withCredentials: true,
+          headers: {
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          }
+        }
       );
       
       if (response.data.success) {
@@ -478,10 +490,16 @@ const FriendsPage = () => {
     if (!friendToRemove) return;
 
     try {
+      const token = localStorage.getItem('token');
       const response = await axios.post(
           `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/remove-friend`,
         { friendId: friendToRemove.profileId },
-        { withCredentials: true }
+        { 
+          withCredentials: true,
+          headers: {
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          }
+        }
       );
 
       if (response.data.success) {

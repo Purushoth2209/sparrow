@@ -9,8 +9,12 @@ let io;
 const initializeSocket = async (server) => {
   io = new Server(server, {
     cors: {
-      origin: "*",
+      origin: [
+        process.env.FRONTEND_URL || 'http://localhost:3000',
+        'https://sparrow-frontend-sigma.vercel.app'
+      ],
       methods: ["GET", "POST"],
+      credentials: true
     },
   });
 

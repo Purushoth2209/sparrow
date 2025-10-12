@@ -62,13 +62,14 @@ const Login = () => {
         localStorage.setItem('fullName', data.user.fullName || '');
         localStorage.setItem('profileImage', data.user.profileImage || '');
         localStorage.setItem('token', data.token); // Store JWT token
+        console.log('🔑 JWT Token stored:', data.token.substring(0, 50) + '...');
 
         // Connect to Socket.IO
         if (socket) {
           socket.emit('setUser', data.user.profileId);
         }
 
-        console.log('✅ Login successful, JWT token created - v2.0');
+        console.log('🔥 JWT AUTHENTICATION WORKING - v3.0 - ' + new Date().toISOString());
 
         // Navigate to chat
         navigate('/friends');
