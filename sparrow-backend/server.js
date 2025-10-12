@@ -54,8 +54,10 @@ app.use(
     resave: false,
     // Don't create session until something is stored
     saveUninitialized: false,
-    // Use memory store for development (in production, use Redis or MongoDB)
-    store: new (require('express-session').MemoryStore)(),
+    // Use a more robust session store for production
+    store: process.env.NODE_ENV === 'production' 
+      ? undefined // Let express-session handle it (uses default store)
+      : new (require('express-session').MemoryStore)(),
     // Set session name to avoid conflicts
     name: 'sparrow.sid',
     cookie: {
