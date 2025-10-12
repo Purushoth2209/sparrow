@@ -18,7 +18,8 @@ const server = http.createServer(app);
 // Enable CORS with credentials support for session-based auth
 const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
-  'https://sparrow-frontend-sigma.vercel.app', // Your Vercel frontend
+  'https://www.sparrowchat.in', // Your custom domain frontend
+  'https://sparrowchat.in', // Your custom domain without www
   'http://localhost:3000' // Local development
 ].filter(Boolean); // Remove any undefined values
 
@@ -45,34 +46,12 @@ app.use(cors({
 // Parse JSON request bodies
 app.use(bodyParser.json());
 
-// Debug middleware to log cookie headers
+// Debug middleware to log cookie headers (optional - can be removed in production)
 app.use((req, res, next) => {
-  console.log('🍪 Request cookies:', req.headers.cookie);
-  console.log('🍪 Request origin:', req.headers.origin);
-  console.log('🍪 Request user-agent:', req.headers['user-agent']);
-  next();
-});
-
-// Custom middleware to handle cross-origin cookie setting
-app.use((req, res, next) => {
-  // Store the original res.cookie function
-  const originalCookie = res.cookie;
-  
-  // Override res.cookie to add additional headers for cross-origin
-  res.cookie = function(name, value, options) {
-    // Call the original cookie function
-    originalCookie.call(this, name, value, options);
-    
-    // Add explicit headers for cross-origin cookie support
-    if (req.headers.origin) {
-      res.header('Access-Control-Allow-Credentials', 'true');
-      res.header('Access-Control-Allow-Origin', req.headers.origin);
-      console.log('🍪 Setting cross-origin cookie:', name, 'for origin:', req.headers.origin);
-    }
-    
-    return this;
-  };
-  
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('🍪 Request cookies:', req.headers.cookie);
+    console.log('🍪 Request origin:', req.headers.origin);
+  }
   next();
 });
 
@@ -97,12 +76,12 @@ app.use(
       maxAge: 7 * 24 * 60 * 60 * 1000,
       // HttpOnly prevents client-side JS from reading cookie (security)
       httpOnly: true,
-      // SameSite prevents CSRF attacks - use 'lax' for better cross-origin support
+      // SameSite prevents CSRF attacks - use 'lax' for subdomain support
       sameSite: 'lax',
-      // Secure requires HTTPS (set to true in production with HTTPS)
-      secure: true,
-      // Domain for cookie (leave undefined for cross-origin requests)
-      domain: undefined, // Always undefined for cross-origin
+      // Secure requires HTTPS (only true in production with HTTPS)
+      secure: process.env.NODE_ENV === 'production',
+      // Domain for cookie - only set in production for subdomain support
+      domain: process.env.NODE_ENV === 'production' ? (process.env.COOKIE_DOMAIN || '.sparrowchat.in') : undefined,
     },
   })
 );

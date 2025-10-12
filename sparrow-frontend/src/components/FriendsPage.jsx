@@ -37,14 +37,10 @@ const FriendsPage = () => {
     setError('');
     
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.get(
         `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/search-friends${searchQuery ? `?username=${encodeURIComponent(searchQuery)}` : ''}`,
         { 
-          withCredentials: true,
-          headers: {
-            ...(token && { 'Authorization': `Bearer ${token}` })
-          }
+          withCredentials: true
         }
       );
       
@@ -71,14 +67,10 @@ const FriendsPage = () => {
 
   const fetchFriendRequestsCount = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.get(
         `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/friend-requests`,
         { 
-          withCredentials: true,
-          headers: {
-            ...(token && { 'Authorization': `Bearer ${token}` })
-          }
+          withCredentials: true
         }
       );
       
@@ -441,12 +433,10 @@ const FriendsPage = () => {
       
       // Fallback to REST API if Socket.IO fails
       try {
-        const token = localStorage.getItem('token');
         const response = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/messages/send`, {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` })
+            'Content-Type': 'application/json'
           },
           credentials: 'include',
           body: JSON.stringify({
@@ -490,15 +480,11 @@ const FriendsPage = () => {
     if (!friendToRemove) return;
 
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.post(
           `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/remove-friend`,
         { friendId: friendToRemove.profileId },
         { 
-          withCredentials: true,
-          headers: {
-            ...(token && { 'Authorization': `Bearer ${token}` })
-          }
+          withCredentials: true
         }
       );
 
@@ -565,12 +551,10 @@ const FriendsPage = () => {
       console.log('🔌 Socket.IO disconnected');
       
       // Call REST API logout
-        const token = localStorage.getItem('token');
         await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/auth/logout`, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
+          'Content-Type': 'application/json'
         },
         credentials: 'include',
       });

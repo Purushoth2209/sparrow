@@ -8,27 +8,25 @@ import UsernameSetup from './components/UsernameSetup';
 import './components/styles/modern-theme.css';
 
 // PrivateRoute Component to protect authenticated pages
-// Allows both JWT-based auth (email/phone) and session-based auth (Google OAuth)
+// Uses session-based authentication
 const PrivateRoute = ({ element: Component, ...rest }) => {
   const [isCheckingAuth, setIsCheckingAuth] = React.useState(true);
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
 
   React.useEffect(() => {
     const checkAuth = async (retryCount = 0) => {
-      const token = localStorage.getItem('token');
       const profileId = localStorage.getItem('profileId');
 
-      console.log('🔍 Auth check - Local storage:', { token: !!token, profileId: !!profileId, retry: retryCount });
+      console.log('🔍 Auth check - Local storage:', { profileId: !!profileId, retry: retryCount });
 
       // If we have local auth data, verify it's still valid with backend
-      if (token && profileId) {
+      if (profileId) {
         try {
           const response = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/user`, {
             method: 'GET',
             credentials: 'include',
             headers: { 
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
               'Cache-Control': 'no-cache',
               'Pragma': 'no-cache'
             },
@@ -47,7 +45,6 @@ const PrivateRoute = ({ element: Component, ...rest }) => {
               localStorage.setItem('email', data.user.email || '');
               localStorage.setItem('fullName', data.user.fullName || '');
               localStorage.setItem('profileImage', data.user.profileImage || '');
-              localStorage.setItem('token', token);
               setIsAuthenticated(true);
             } else {
               console.log('❌ Invalid session data, clearing local storage');
@@ -98,7 +95,6 @@ const PrivateRoute = ({ element: Component, ...rest }) => {
               localStorage.setItem('email', data.user.email || '');
               localStorage.setItem('fullName', data.user.fullName || '');
               localStorage.setItem('profileImage', data.user.profileImage || '');
-              localStorage.setItem('token', token);
               setIsAuthenticated(true);
             } else {
               console.log('❌ No valid session found');
@@ -172,14 +168,12 @@ const App = () => {
           }
         }
         
-        // Call backend logout endpoint
-        const token = localStorage.getItem('token');
+        // Call backend logout endpoint (session-based)
         await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/auth/logout`, {
           method: 'POST',
           credentials: 'include',
           headers: { 
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` })
+            'Content-Type': 'application/json'
           },
         });
         
@@ -196,10 +190,10 @@ const App = () => {
     // Handle browser back button from friends page
     const handlePopState = (event) => {
       const currentPath = window.location.pathname;
-      const token = localStorage.getItem('token');
+      const profileId = localStorage.getItem('profileId');
       
       // If user goes back from friends page and is authenticated, logout
-      if (token && (currentPath === '/login' || currentPath === '/signup')) {
+      if (profileId && (currentPath === '/login' || currentPath === '/signup')) {
         // Clear local data immediately to prevent auth issues
         localStorage.clear();
         sessionStorage.clear();
@@ -238,12 +232,8 @@ const App = () => {
         try {
           const xhr = new XMLHttpRequest();
           xhr.timeout = 500; // 500ms timeout to prevent hanging
-          const token = localStorage.getItem('token');
           xhr.open('POST', `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/auth/logout`, false);
           xhr.setRequestHeader('Content-Type', 'application/json');
-          if (token) {
-            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-          }
           xhr.withCredentials = true;
           xhr.send(JSON.stringify({}));
           console.log('📡 Synchronous logout request sent');
@@ -256,16 +246,14 @@ const App = () => {
     // Handle visibility change (tab switching)
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        const token = localStorage.getItem('token');
-        if (token) {
+        const profileId = localStorage.getItem('profileId');
+        if (profileId) {
           // Verify session is still valid
-          const token = localStorage.getItem('token');
           fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/user`, {
             method: 'GET',
             credentials: 'include',
             headers: { 
-              'Content-Type': 'application/json',
-              ...(token && { 'Authorization': `Bearer ${token}` })
+              'Content-Type': 'application/json'
             },
           }).then(response => {
             if (!response.ok) {

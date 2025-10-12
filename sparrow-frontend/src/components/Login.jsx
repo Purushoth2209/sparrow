@@ -15,11 +15,10 @@ const Login = () => {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    // Check if user is already authenticated
-    const token = localStorage.getItem('token');
+    // Check if user is already authenticated (session-based)
     const profileId = localStorage.getItem('profileId');
     
-    if (token || profileId) {
+    if (profileId) {
       // User is already logged in, redirect to friends page
       navigate('/friends');
       return;
@@ -55,21 +54,20 @@ const Login = () => {
       );
 
       if (data.success) {
-        // Store user info and JWT token in localStorage
+        // Store user info in localStorage (session-based auth)
         localStorage.setItem('profileId', data.user.profileId);
         localStorage.setItem('username', data.user.username);
         localStorage.setItem('email', data.user.email || '');
         localStorage.setItem('fullName', data.user.fullName || '');
         localStorage.setItem('profileImage', data.user.profileImage || '');
-        localStorage.setItem('token', data.token); // Store JWT token
-        console.log('🔑 JWT Token stored:', data.token.substring(0, 50) + '...');
+        console.log('✅ Session-based authentication successful');
 
         // Connect to Socket.IO
         if (socket) {
           socket.emit('setUser', data.user.profileId);
         }
 
-        console.log('🔥 JWT AUTHENTICATION WORKING - v3.0 - ' + new Date().toISOString());
+        console.log('🔥 SESSION AUTHENTICATION WORKING - ' + new Date().toISOString());
 
         // Navigate to chat
         navigate('/friends');

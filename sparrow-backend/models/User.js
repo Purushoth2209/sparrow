@@ -21,6 +21,7 @@ const userSchema = new mongoose.Schema({
     required: false,
     unique: true,
     sparse: true
+    // No default value - leave undefined for Google OAuth users
   },
   password: {
     type: String,

@@ -3,7 +3,6 @@ require('dotenv').config(); // Import dotenv to load environment variables
 const bcrypt = require('bcryptjs');
 const dns = require('dns').promises;
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { userSockets, io } = require('../socketio');
 
@@ -336,8 +335,8 @@ exports.loginUser = async (req, res) => {
         user.lastLoginAttempt = new Date();
         await user.save();
 
-        // Create JWT token (stateless authentication)
-        const userPayload = {
+        // Create session (stateful authentication)
+        req.session.user = {
             profileId: user.profileId,
             username: user.username,
             email: user.email || null,
@@ -345,10 +344,6 @@ exports.loginUser = async (req, res) => {
             fullName: user.fullName || '',
             profileImage: user.profileImage || '',
         };
-
-        const token = jwt.sign(userPayload, process.env.JWT_SECRET, { 
-            expiresIn: '7d' // Token expires in 7 days
-        });
 
         // ===== SECURITY: Password expiry warning (optional) =====
         let passwordWarning = null;
@@ -359,12 +354,11 @@ exports.loginUser = async (req, res) => {
             }
         }
 
-        console.log('✅ Login successful, JWT token created for:', user.username);
+        console.log('✅ Login successful, session created for:', user.username);
 
         res.status(200).json({ 
             success: true,
-            token: token,
-            user: userPayload,
+            user: req.session.user,
             message: 'Login successful',
             passwordWarning
         });
@@ -471,6 +465,12 @@ exports.googleLogin = async (req, res) => {
     req.session.oidcState = state;
     req.session.oidcNonce = nonce;
 
+    console.log('🔍 OIDC Login Initiation Debug:');
+    console.log('  - Session ID:', req.sessionID);
+    console.log('  - Generated state:', state);
+    console.log('  - Stored state in session:', req.session.oidcState);
+    console.log('  - Session exists:', !!req.session);
+
     // Build authorization URL
     const authorizationUrl = client.authorizationUrl({
       scope: 'openid email profile',
@@ -506,8 +506,17 @@ exports.googleCallback = async (req, res) => {
     const params = client.callbackParams(req);
     
     // Step 1: Verify state parameter (CSRF protection)
+    console.log('🔍 OIDC Callback Debug:');
+    console.log('  - Session ID:', req.sessionID);
+    console.log('  - Session exists:', !!req.session);
+    console.log('  - Stored state:', req.session.oidcState);
+    console.log('  - Received state:', params.state);
+    console.log('  - Cookies:', req.headers.cookie);
+    
     if (!req.session.oidcState || params.state !== req.session.oidcState) {
       console.error('❌ State mismatch - possible CSRF attack');
+      console.error('  - Expected state:', req.session.oidcState);
+      console.error('  - Received state:', params.state);
       return res.status(400).json({ 
         success: false, 
         error: 'Invalid state parameter' 
@@ -535,40 +544,67 @@ exports.googleCallback = async (req, res) => {
     const userInfo = extractUserInfo(claims);
 
     // Step 5: Find or create user in database
+    console.log('🔍 Looking for existing user with email:', userInfo.email, 'or profileId:', `google-${userInfo.providerId}`);
+    
     let user = await User.findOne({ 
       $or: [
         { email: userInfo.email },
         { profileId: `google-${userInfo.providerId}` }
       ]
     });
-
-    if (!user) {
-      // New user - create temporary account without username
-      user = new User({
-        fullName: userInfo.fullName,
-        email: userInfo.email,
-        phoneNumber: undefined,
-        password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10),
-        profileId: `google-${userInfo.providerId}`,
-        username: `temp_${userInfo.providerId}`, // Temporary username, user will set real one
-        profileImage: userInfo.picture,
-        isOnline: false,
-        socketId: null,
-        passwordChangedAt: new Date(),
-        needsUsernameSetup: true, // Flag to indicate user needs to set username
+    
+    console.log('🔍 User found:', !!user);
+    if (user) {
+      console.log('🔍 Existing user details:', {
+        username: user.username,
+        email: user.email,
+        profileId: user.profileId,
+        needsUsernameSetup: user.needsUsernameSetup
       });
-      
-      console.log('✅ New Google user created, needs username setup');
-    } else {
-      // Existing user - update profile
-      user.fullName = userInfo.fullName || user.fullName;
-      user.profileImage = userInfo.picture || user.profileImage;
-      user.email = userInfo.email || user.email;
-      
-      console.log('✅ Existing Google user updated:', user.username);
     }
 
-    await user.save();
+    if (!user) {
+      // NEW USER: Create temporary account without username
+      console.log('👤 Creating new Google OAuth user...');
+      
+      try {
+        user = new User({
+          fullName: userInfo.fullName,
+          email: userInfo.email,
+          // Don't set phoneNumber for Google OAuth users (leave it undefined to avoid unique constraint issues)
+          password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10),
+          profileId: `google-${userInfo.providerId}`,
+          username: `temp_${userInfo.providerId}`, // Temporary username, user will set real one
+          profileImage: userInfo.picture,
+          isOnline: false,
+          socketId: null,
+          passwordChangedAt: new Date(),
+          needsUsernameSetup: true, // Flag to indicate user needs to set username
+        });
+        
+        await user.save();
+        console.log('✅ New Google user created successfully, needs username setup');
+      } catch (error) {
+        console.error('❌ Failed to create new Google user:', error);
+        throw error;
+      }
+    } else {
+      // EXISTING USER: Update profile and authenticate
+      console.log('👤 Updating existing Google OAuth user...');
+      
+      try {
+        // Update user profile with latest information from Google
+        user.fullName = userInfo.fullName || user.fullName;
+        user.profileImage = userInfo.picture || user.profileImage;
+        user.email = userInfo.email || user.email;
+        
+        await user.save();
+        console.log('✅ Existing Google user updated and authenticated:', user.username);
+      } catch (error) {
+        console.error('❌ Failed to update existing Google user:', error);
+        throw error;
+      }
+    }
 
     // Step 6: Create session (same as email/phone login)
     req.session.user = {
@@ -589,9 +625,11 @@ exports.googleCallback = async (req, res) => {
     // Redirect based on whether user needs username setup
     if (user.needsUsernameSetup) {
       // New user - redirect to username setup page
+      console.log('🔄 Redirecting new user to username setup page');
       res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/setup-username`);
     } else {
       // Existing user - redirect to chat page
+      console.log('🔄 Redirecting existing user to friends page');
       res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/friends`);
     }
 

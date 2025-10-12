@@ -26,14 +26,10 @@ const GlobalSearch = () => {
     setError('');
     
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.get(
         `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/search-global?username=${encodeURIComponent(searchQuery)}`,
         { 
-          withCredentials: true,
-          headers: {
-            ...(token && { 'Authorization': `Bearer ${token}` })
-          }
+          withCredentials: true
         }
       );
       
@@ -74,14 +70,10 @@ const GlobalSearch = () => {
 
   const fetchFriendRequestsCount = async () => {
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.get(
         `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/friend-requests`,
         { 
-          withCredentials: true,
-          headers: {
-            ...(token && { 'Authorization': `Bearer ${token}` })
-          }
+          withCredentials: true
         }
       );
       
@@ -97,15 +89,11 @@ const GlobalSearch = () => {
     try {
       setRequestStatus(prev => ({ ...prev, [targetUserId]: 'sending' }));
       
-      const token = localStorage.getItem('token');
       const response = await axios.post(
         `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/send-request`,
         { toUserId: targetUserId },
         { 
-          withCredentials: true,
-          headers: {
-            ...(token && { 'Authorization': `Bearer ${token}` })
-          }
+          withCredentials: true
         }
       );
       
@@ -138,15 +126,11 @@ const GlobalSearch = () => {
     if (!friendToRemove) return;
 
     try {
-      const token = localStorage.getItem('token');
       const response = await axios.post(
         `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/remove-friend`,
         { friendId: friendToRemove.profileId },
         { 
-          withCredentials: true,
-          headers: {
-            ...(token && { 'Authorization': `Bearer ${token}` })
-          }
+          withCredentials: true
         }
       );
 
@@ -242,12 +226,10 @@ const GlobalSearch = () => {
 
   const confirmLogout = async () => {
     try {
-      const token = localStorage.getItem('token');
       await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/auth/logout`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
+        headers: {
+          'Content-Type': 'application/json'
         },
         credentials: 'include',
       });
