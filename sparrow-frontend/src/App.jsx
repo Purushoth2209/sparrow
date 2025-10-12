@@ -173,10 +173,14 @@ const App = () => {
         }
         
         // Call backend logout endpoint
+        const token = localStorage.getItem('token');
         await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/auth/logout`, {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          },
         });
         
         console.log('✅ Logout completed');
@@ -234,8 +238,12 @@ const App = () => {
         try {
           const xhr = new XMLHttpRequest();
           xhr.timeout = 500; // 500ms timeout to prevent hanging
+          const token = localStorage.getItem('token');
           xhr.open('POST', `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/auth/logout`, false);
           xhr.setRequestHeader('Content-Type', 'application/json');
+          if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+          }
           xhr.withCredentials = true;
           xhr.send(JSON.stringify({}));
           console.log('📡 Synchronous logout request sent');
@@ -251,10 +259,14 @@ const App = () => {
         const token = localStorage.getItem('token');
         if (token) {
           // Verify session is still valid
+          const token = localStorage.getItem('token');
           fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/user`, {
             method: 'GET',
             credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(token && { 'Authorization': `Bearer ${token}` })
+            },
           }).then(response => {
             if (!response.ok) {
               // Session invalid, logout

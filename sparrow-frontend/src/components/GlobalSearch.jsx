@@ -218,9 +218,13 @@ const GlobalSearch = () => {
 
   const confirmLogout = async () => {
     try {
+      const token = localStorage.getItem('token');
       await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/auth/logout`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
         credentials: 'include',
       });
       localStorage.clear();
