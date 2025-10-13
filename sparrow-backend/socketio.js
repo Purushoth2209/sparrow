@@ -1,6 +1,7 @@
 const { Server } = require('socket.io');
 const Message = require('./models/Message');
 const User = require('./models/User');
+const { sendMessage, decryptSingleMessage } = require('./controllers/messageController');
 
 const userSockets = new Map();
 const userLastPing = new Map(); // Track last ping time for each user
@@ -135,29 +136,45 @@ const initializeSocket = async (server) => {
         // Notify senders that their messages are now delivered
         const senderIds = [...new Set(undeliveredMessages.map(msg => msg.senderId))];
         
-        undeliveredMessages.forEach((msg) => {
-          const messageWithTime = {
-            ...msg.toObject(),
-            timestamp: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-          };
-          socket.emit('receiveMessage', messageWithTime);
-          
-          // Update message status to delivered
-          Message.findByIdAndUpdate(msg._id, { 
-            status: 'delivered', 
-            deliveredAt: new Date() 
-          }).exec();
-          
-          // Notify sender that their message was delivered
-          const senderSocketId = userSockets.get(msg.senderId);
-          if (senderSocketId) {
-            io.to(senderSocketId).emit('messageStatusUpdate', {
-              messageId: msg._id,
-              status: 'delivered',
-              deliveredAt: new Date()
+        // Process each undelivered message
+        for (const msg of undeliveredMessages) {
+          try {
+            // Decrypt the message for display
+            const decryptedMessage = await decryptSingleMessage(msg);
+            
+            const messageWithTime = {
+              ...decryptedMessage,
+              timestamp: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+            };
+            
+            socket.emit('receiveMessage', messageWithTime);
+            
+            // Update message status to delivered
+            await Message.findByIdAndUpdate(msg._id, { 
+              status: 'delivered', 
+              deliveredAt: new Date() 
+            });
+            
+            // Notify sender that their message was delivered
+            const senderSocketId = userSockets.get(msg.senderId);
+            if (senderSocketId) {
+              io.to(senderSocketId).emit('messageStatusUpdate', {
+                messageId: msg._id,
+                status: 'delivered',
+                deliveredAt: new Date()
+              });
+            }
+          } catch (decryptError) {
+            console.error(`❌ Failed to decrypt undelivered message ${msg._id}:`, decryptError);
+            // Send error message to user
+            socket.emit('receiveMessage', {
+              ...msg.toObject(),
+              content: '[Message could not be decrypted]',
+              decryptionError: true,
+              timestamp: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
             });
           }
-        });
+        }
       }
 
       await Message.deleteMany({ receiverId: profileId });
@@ -165,26 +182,13 @@ const initializeSocket = async (server) => {
 
     socket.on('sendMessage', async ({ senderId, receiverId, content }) => {
       try {
-        // Validate friendship before allowing message
-        const sender = await User.findOne({ profileId: senderId });
-        if (!sender || !sender.friends.includes(receiverId)) {
-          socket.emit('error', { message: 'Cannot send message to non-friend user' });
-          return;
-        }
+        // Use the encrypted message controller to send message
+        const savedMessage = await sendMessage(senderId, receiverId, content);
 
-        const savedMessage = await Message.create({
-          senderId,
-          receiverId,
-          content,
-          timestamp: new Date(),
-          status: 'sent'
-        });
-
-        const fetchedMessage = await Message.findById(savedMessage._id);
-
+        // Format message with time for display
         const messageWithTime = {
-          ...fetchedMessage.toObject(),
-          timestamp: new Date(fetchedMessage.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          ...savedMessage,
+          timestamp: new Date(savedMessage.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         };
 
         const receiverSocketId = userSockets.get(receiverId);
@@ -197,7 +201,16 @@ const initializeSocket = async (server) => {
           messageWithTime.status = 'delivered';
           messageWithTime.deliveredAt = new Date();
           
-          io.to(receiverSocketId).emit('receiveMessage', messageWithTime);
+          // Get the full message from database for decryption
+          const fullMessage = await Message.findById(savedMessage._id);
+          if (fullMessage) {
+            // Decrypt message for real-time display to receiver
+            const decryptedMessage = await decryptSingleMessage(fullMessage);
+            decryptedMessage.timestamp = messageWithTime.timestamp;
+            decryptedMessage.status = 'delivered';
+            decryptedMessage.deliveredAt = new Date();
+            io.to(receiverSocketId).emit('receiveMessage', decryptedMessage);
+          }
           
           // Notify sender that message was delivered
           socket.emit('messageStatusUpdate', {
@@ -214,10 +227,16 @@ const initializeSocket = async (server) => {
           });
         }
         
-        // Send message back to sender with initial status
-        socket.emit('messageSent', messageWithTime);
+        // Get the full message from database for decryption
+        const fullMessage = await Message.findById(savedMessage._id);
+        if (fullMessage) {
+          // Send decrypted message back to sender for display
+          const decryptedMessageForSender = await decryptSingleMessage(fullMessage);
+          decryptedMessageForSender.timestamp = messageWithTime.timestamp;
+          socket.emit('messageSent', decryptedMessageForSender);
+        }
       } catch (error) {
-        console.error('Error saving or delivering message:', error);
+        console.error('❌ Error sending encrypted message:', error);
         socket.emit('error', { message: 'Error sending message' });
       }
     });

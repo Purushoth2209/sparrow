@@ -1,12 +1,12 @@
 const express = require('express');
 const Message = require('../models/Message');
 const User = require('../models/User');
-const { sendMessage, updateMessageStatus } = require('../controllers/messageController');
+const { sendMessage, updateMessageStatus, getDecryptedMessages, getEncryptionStats } = require('../controllers/messageController');
 const ensureAuthenticated = require('../middleware/ensureAuthenticated');
 
 const router = express.Router();
 
-// Get messages between current user and a friend
+// Get messages between current user and a friend (with decryption)
 router.get('/:friendId', ensureAuthenticated, async (req, res) => {
   try {
     const { friendId } = req.params;
@@ -18,48 +18,32 @@ router.get('/:friendId', ensureAuthenticated, async (req, res) => {
       return res.status(403).json({ error: 'Cannot access messages with non-friend user' });
     }
 
-    // Get messages between users
-    const messages = await Message.find({
-      $or: [
-        { senderId: currentUserId, receiverId: friendId },
-        { senderId: friendId, receiverId: currentUserId }
-      ]
-    }).sort({ timestamp: 1 });
+    // Get and decrypt messages between users
+    const messages = await getDecryptedMessages(currentUserId, friendId);
 
     res.status(200).json({ messages });
   } catch (err) {
+    console.error('❌ Error fetching encrypted messages:', err);
     res.status(500).json({ error: 'Error fetching messages' });
   }
 });
 
+// Send encrypted message
 router.post('/send', ensureAuthenticated, async (req, res) => {
   try {
     const { receiverId, content } = req.body;
     const senderId = req.user.profileId;
 
-    // Validate friendship before sending
-    const currentUser = await User.findOne({ profileId: senderId });
-    if (!currentUser.friends.includes(receiverId)) {
-      return res.status(403).json({ error: 'Cannot send message to non-friend user' });
-    }
+    // Use the encrypted message controller
+    const newMessage = await sendMessage(senderId, receiverId, content);
 
-    const newMessage = new Message({
-      senderId,
-      receiverId,
-      content,
-      timestamp: new Date(),
-      status: 'sent'
-    });
-
-    await newMessage.save();
-
-    const savedMessage = newMessage.toObject();
-    savedMessage.timestamp = savedMessage.timestamp.toLocaleTimeString([], {
+    const savedMessage = newMessage;
+    savedMessage.timestamp = new Date(savedMessage.timestamp).toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
     });
 
-    // Emit message via socket
+    // Emit message via socket (socket.io will handle decryption for real-time display)
     const { io } = require('../socketio');
     const receiverSocketId = require('../socketio').userSockets.get(receiverId);
     if (receiverSocketId && io) {
@@ -71,11 +55,13 @@ router.post('/send', ensureAuthenticated, async (req, res) => {
       savedMessage.status = 'delivered';
       savedMessage.deliveredAt = new Date();
       
+      // Socket.io will handle decryption when emitting to receiver
       io.to(receiverSocketId).emit('receiveMessage', savedMessage);
     }
 
     res.status(200).json({ message: savedMessage });
   } catch (err) {
+    console.error('❌ Error sending encrypted message:', err);
     res.status(500).json({ error: 'Error sending message' });
   }
 });
@@ -129,6 +115,36 @@ router.post('/updateStatus', async (req, res) => {
     res.status(200).json({ message: 'Message status updated' });
   } catch (err) {
     res.status(500).json({ error: 'Error updating message status' });
+  }
+});
+
+// Get encryption statistics (admin/monitoring endpoint)
+router.get('/stats/encryption', ensureAuthenticated, async (req, res) => {
+  try {
+    const stats = await getEncryptionStats();
+    res.status(200).json({ 
+      message: 'Encryption statistics retrieved successfully',
+      stats 
+    });
+  } catch (err) {
+    console.error('❌ Error getting encryption stats:', err);
+    res.status(500).json({ error: 'Error retrieving encryption statistics' });
+  }
+});
+
+// Get all messages for current user (with decryption)
+router.get('/', ensureAuthenticated, async (req, res) => {
+  try {
+    const currentUserId = req.user.profileId;
+    const messages = await getDecryptedMessages(currentUserId);
+    
+    res.status(200).json({ 
+      message: 'Messages retrieved successfully',
+      messages 
+    });
+  } catch (err) {
+    console.error('❌ Error fetching all encrypted messages:', err);
+    res.status(500).json({ error: 'Error fetching messages' });
   }
 });
 
