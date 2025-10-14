@@ -645,7 +645,7 @@ const FriendsPage = () => {
           {/* Friends List */}
           <Col xs={4} className="friends-list-container">
             <div className="p-3 h-100 d-flex flex-column">
-              <Form.Group className="mb-3">
+              <Form.Group className="mb-3 flex-shrink-0">
                 <Form.Control
                   type="text"
                   placeholder="🔍 Search friends..."
@@ -656,21 +656,21 @@ const FriendsPage = () => {
               </Form.Group>
 
             {error && (
-              <Alert variant="danger" onClose={() => setError('')} dismissible>
+              <Alert variant="danger" onClose={() => setError('')} dismissible className="flex-shrink-0">
                 {error}
               </Alert>
             )}
 
             {loading && (
-              <div className="text-center py-4">
+              <div className="text-center py-4 flex-shrink-0">
                 <Spinner animation="border" />
                 <p className="mt-2">Loading friends...</p>
               </div>
             )}
 
-              <div className="flex-grow-1 overflow-auto">
+              <div className="friends-list">
                 {filteredFriends.length > 0 ? (
-                  <div className="friends-list">
+                  <div>
                     {filteredFriends.map((friend) => (
                       <div
                         key={friend.profileId}
