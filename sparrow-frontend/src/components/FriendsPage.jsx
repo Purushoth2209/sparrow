@@ -158,6 +158,9 @@ const FriendsPage = () => {
     socket.on('receiveMessage', (message) => {
       console.log('📨 Message received:', message);
       
+      // Move the sender to the top of the friends list immediately
+      moveFriendToTop(message.senderId);
+      
       // Update messages state
       setMessages(prev => ({
         ...prev,
@@ -378,6 +381,40 @@ const FriendsPage = () => {
     });
   };
 
+  // Helper function to move a friend to the top of the friends list
+  const moveFriendToTop = (profileId) => {
+    setFriends(prevFriends => {
+      const friendIndex = prevFriends.findIndex(f => f.profileId === profileId);
+      if (friendIndex === -1 || friendIndex === 0) {
+        // Friend not found or already at top, no need to reorder
+        return prevFriends;
+      }
+      
+      // Move friend to the top
+      const reorderedFriends = [...prevFriends];
+      const [friendToMove] = reorderedFriends.splice(friendIndex, 1);
+      reorderedFriends.unshift(friendToMove);
+      
+      return reorderedFriends;
+    });
+    
+    // Also update filtered friends if not searching
+    if (!searchQuery.trim()) {
+      setFilteredFriends(prevFiltered => {
+        const friendIndex = prevFiltered.findIndex(f => f.profileId === profileId);
+        if (friendIndex === -1 || friendIndex === 0) {
+          return prevFiltered;
+        }
+        
+        const reorderedFiltered = [...prevFiltered];
+        const [friendToMove] = reorderedFiltered.splice(friendIndex, 1);
+        reorderedFiltered.unshift(friendToMove);
+        
+        return reorderedFiltered;
+      });
+    }
+  };
+
   const handleSelectFriend = (friend) => {
     setCurrentFriend(friend);
     
@@ -402,6 +439,9 @@ const FriendsPage = () => {
       console.error('No profile ID found');
       return;
     }
+
+    // Move the current friend to the top of the friends list immediately
+    moveFriendToTop(currentFriend.profileId);
 
     // Create temporary message for immediate UI update
     const tempMessage = {
