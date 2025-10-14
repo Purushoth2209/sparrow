@@ -13,7 +13,7 @@ const MessageSchema = new mongoose.Schema({
   timestamp: Date,
   status: {
     type: String,
-    enum: ['sent', 'delivered', 'read'],
+    enum: ['sending', 'sent', 'delivered', 'read'],
     default: 'sent'
   },
   deliveredAt: Date,

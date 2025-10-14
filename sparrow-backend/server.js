@@ -7,6 +7,7 @@ const http = require('http');
 const session = require('express-session');
 const authRoutes = require('./routes/authRoutes');
 const messageRoutes = require('./routes/messageRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 const oidcAuthRoutes = require('./routes/oidcAuthRoutes');
 const userRoutes = require('./routes/userRoutes');
 const friendRoutes = require('./routes/friendRoutes');
@@ -107,6 +108,9 @@ mongoose.connect(mongoURI)
     // Message routes
     app.use('/api/messages', messageRoutes);
     
+    // Chat routes
+    app.use('/api/chats', chatRoutes);
+    
     // Initialize Socket.IO for real-time chat
     initializeSocket(server).catch(err => {
       console.error('❌ Socket.IO initialization failed:', err);
@@ -123,6 +127,10 @@ mongoose.connect(mongoURI)
       console.log(`   - GET  /auth/google → Google OIDC login`);
       console.log(`   - GET  /api/user → Get current user (protected)`);
       console.log(`   - GET  /auth/logout → Logout`);
+      console.log(`   - GET  /api/chats/list → Get chat list (protected)`);
+      console.log(`   - GET  /api/chats/conversation/:friendId → Get conversation (protected)`);
+      console.log(`   - POST /api/chats/conversation/:friendId/read → Mark as read (protected)`);
+      console.log(`   - GET  /api/chats/stats → Get chat statistics (protected)`);
     });
   })
   .catch(err => {

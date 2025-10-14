@@ -1,5 +1,17 @@
 const User = require('../models/User');
 
+// Import notification functions from socketio
+let notifyFriendRequest, notifyFriendAccept, notifyFriendReject, notifyFriendRemoval;
+try {
+  const socketioModule = require('../socketio');
+  notifyFriendRequest = socketioModule.notifyFriendRequest;
+  notifyFriendAccept = socketioModule.notifyFriendAccept;
+  notifyFriendReject = socketioModule.notifyFriendReject;
+  notifyFriendRemoval = socketioModule.notifyFriendRemoval;
+} catch (error) {
+  console.log('⚠️ Socket.IO notification functions not available');
+}
+
 /**
  * Global Search Users by Username
  * 
@@ -199,6 +211,12 @@ exports.sendFriendRequest = async (req, res) => {
 
     console.log(`✅ Friend request sent from ${currentUser.username} to ${targetUser.username}`);
 
+    // Send real-time notification
+    if (notifyFriendRequest) {
+      const friendRequest = targetUser.friendRequests[targetUser.friendRequests.length - 1];
+      await notifyFriendRequest(toUserId, friendRequest);
+    }
+
     res.json({ 
       success: true, 
       message: 'Friend request sent successfully' 
@@ -325,6 +343,11 @@ exports.acceptFriendRequest = async (req, res) => {
 
     console.log(`✅ Friend request accepted between ${currentUser.username} and ${senderUser.username}`);
 
+    // Send real-time notification to both users
+    if (notifyFriendAccept) {
+      await notifyFriendAccept(currentUserId, fromUserId, friendRequest);
+    }
+
     res.json({ 
       success: true, 
       message: 'Friend request accepted successfully' 
@@ -386,6 +409,11 @@ exports.rejectFriendRequest = async (req, res) => {
     await currentUser.save();
 
     console.log(`✅ Friend request rejected from ${fromUserId} to ${currentUser.username}`);
+
+    // Send real-time notification
+    if (notifyFriendReject) {
+      await notifyFriendReject(fromUserId, currentUserId);
+    }
 
     res.json({ 
       success: true, 
@@ -503,6 +531,11 @@ exports.removeFriend = async (req, res) => {
 
     console.log(`✅ Friend removed: ${currentUser.username} removed ${friendUser.username}`);
 
+    // Send real-time notification
+    if (notifyFriendRemoval) {
+      await notifyFriendRemoval(currentUserId, friendId);
+    }
+
     res.json({ 
       success: true, 
       message: 'Friend removed successfully' 
@@ -516,3 +549,4 @@ exports.removeFriend = async (req, res) => {
     });
   }
 };
+

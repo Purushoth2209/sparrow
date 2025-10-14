@@ -55,6 +55,10 @@ router.post('/send', ensureAuthenticated, async (req, res) => {
       savedMessage.status = 'delivered';
       savedMessage.deliveredAt = new Date();
       
+      // Get sender information for notification
+      const sender = await User.findOne({ profileId: senderId });
+      savedMessage.senderUsername = sender ? sender.username : senderId; // Include username for notifications
+      
       // Socket.io will handle decryption when emitting to receiver
       io.to(receiverSocketId).emit('receiveMessage', savedMessage);
     }
@@ -96,11 +100,12 @@ router.post('/markAsRead', ensureAuthenticated, async (req, res) => {
   }
 });
 
-router.post('/updateStatus', async (req, res) => {
+router.post('/updateStatus', ensureAuthenticated, async (req, res) => {
   try {
     const { messageId, status } = req.body;
+    const currentUserId = req.user.profileId;
 
-    if (!['sent', 'delivered', 'read'].includes(status)) {
+    if (!['sending', 'sent', 'delivered', 'read'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
@@ -109,11 +114,23 @@ router.post('/updateStatus', async (req, res) => {
       return res.status(404).json({ error: 'Message not found' });
     }
 
+    // Verify user has permission to update this message
+    if (message.senderId !== currentUserId && message.receiverId !== currentUserId) {
+      return res.status(403).json({ error: 'Not authorized to update this message' });
+    }
+
     message.status = status;
+    if (status === 'delivered') {
+      message.deliveredAt = new Date();
+    } else if (status === 'read') {
+      message.readAt = new Date();
+    }
+    
     await message.save();
 
     res.status(200).json({ message: 'Message status updated' });
   } catch (err) {
+    console.error('❌ Error updating message status:', err);
     res.status(500).json({ error: 'Error updating message status' });
   }
 });
