@@ -9,6 +9,7 @@ import Logo from '../Logo.png';
 import FriendRequests from './FriendRequests';
 import MessageStatus from './MessageStatus';
 import CustomAlert from './CustomAlert';
+import NotificationBell from './NotificationBell';
 import { useSocket } from '../contexts/SocketContext';
 import './styles/modern-theme.css';
 
@@ -914,6 +915,12 @@ const FriendsPage = () => {
                   <UserSearchIcon size={16} className="me-1" />
                   <span className="d-none-mobile">Find Friends</span>
                 </Button>
+                
+                {/* Notification Bell */}
+                <div className="me-3">
+                  <NotificationBell />
+                </div>
+                
                 <div className="position-relative me-3">
                   <Button 
                     className="btn-modern-secondary d-flex align-items-center"

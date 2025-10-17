@@ -70,6 +70,21 @@ const broadcastToFriends = async (profileId, event, data) => {
   }
 };
 
+// Helper function to send notification to a specific user
+const sendNotificationToUser = async (userId, event, data) => {
+  try {
+    const userSocketId = userSockets.get(userId);
+    if (userSocketId) {
+      io.to(userSocketId).emit(event, data);
+      console.log(`📤 Sent ${event} notification to user ${userId}`);
+    } else {
+      console.log(`⚠️ User ${userId} not connected, cannot send ${event} notification`);
+    }
+  } catch (error) {
+    console.error(`❌ Error sending ${event} notification to user ${userId}:`, error);
+  }
+};
+
 const initializeSocket = async (server) => {
   io = new Server(server, {
     cors: {
@@ -283,6 +298,27 @@ const initializeSocket = async (server) => {
               isDeliveredOnConnect: true // Flag to indicate this was delivered on connect
             };
             
+            // EMIT MESSAGE NOTIFICATION EVENT for undelivered messages too
+            console.log('🔔 Emitting messageReceivedNotification event for undelivered message:', {
+              senderId: msg.senderId,
+              senderName: sender ? sender.username : 'Unknown User',
+              senderProfileImage: sender ? sender.profileImage : null,
+              messagePreview: decryptedMessage.content ? decryptedMessage.content.substring(0, 30) : 'Message',
+              timestamp: new Date(),
+              messageId: msg._id
+            });
+            
+            // Send notification event for undelivered message
+            socket.emit('messageReceivedNotification', {
+              senderId: msg.senderId,
+              senderName: sender ? sender.username : 'Unknown User',
+              senderProfileImage: sender ? sender.profileImage : null,
+              messagePreview: decryptedMessage.content ? decryptedMessage.content.substring(0, 30) : 'Message',
+              timestamp: new Date(),
+              messageId: msg._id,
+              fullMessage: messageWithTime // Include full message for immediate display
+            });
+            
             socket.emit('receiveMessage', messageWithTime);
             
             // Update message status to delivered (but keep in database for read tracking)
@@ -340,27 +376,48 @@ const initializeSocket = async (server) => {
 
         const receiverSocketId = userSockets.get(receiverId);
         if (receiverSocketId) {
-          // Message delivered immediately (receiver is online)
-          await Message.findByIdAndUpdate(savedMessage._id, { 
-            status: 'delivered', 
-            deliveredAt: new Date() 
-          });
-          messageWithTime.status = 'delivered';
-          messageWithTime.deliveredAt = new Date();
-          
           // Get the full message from database for decryption
           const fullMessage = await Message.findById(savedMessage._id);
           if (fullMessage) {
             // Decrypt message for real-time display to receiver
             const decryptedMessage = await decryptSingleMessage(fullMessage);
             decryptedMessage.timestamp = messageWithTime.timestamp;
-            decryptedMessage.status = 'delivered';
-            decryptedMessage.deliveredAt = new Date();
             
             // Get sender's username for display
             const sender = await User.findOne({ profileId: senderId });
             decryptedMessage.senderUsername = sender ? sender.username : 'Unknown User';
             
+            // EMIT MESSAGE NOTIFICATION EVENT - This fires 100% reliably for every message
+            // This happens after encryption and save but before delivery acknowledgment
+            console.log('🔔 Emitting messageReceivedNotification event:', {
+              senderId: senderId,
+              senderName: sender ? sender.username : 'Unknown User',
+              senderProfileImage: sender ? sender.profileImage : null,
+              messagePreview: decryptedMessage.content ? decryptedMessage.content.substring(0, 30) : 'Message',
+              timestamp: new Date(),
+              messageId: savedMessage._id
+            });
+            
+            // Send notification event to receiver
+            io.to(receiverSocketId).emit('messageReceivedNotification', {
+              senderId: senderId,
+              senderName: sender ? sender.username : 'Unknown User',
+              senderProfileImage: sender ? sender.profileImage : null,
+              messagePreview: decryptedMessage.content ? decryptedMessage.content.substring(0, 30) : 'Message',
+              timestamp: new Date(),
+              messageId: savedMessage._id,
+              fullMessage: decryptedMessage // Include full message for immediate display
+            });
+            
+            // Message delivered immediately (receiver is online)
+            await Message.findByIdAndUpdate(savedMessage._id, { 
+              status: 'delivered', 
+              deliveredAt: new Date() 
+            });
+            decryptedMessage.status = 'delivered';
+            decryptedMessage.deliveredAt = new Date();
+            
+            // Send the actual message for display
             io.to(receiverSocketId).emit('receiveMessage', decryptedMessage);
             
             // Delete the message after delivery (wait a bit to ensure frontend received it)
@@ -555,4 +612,4 @@ const initializeSocket = async (server) => {
   return io;
 };
 
-module.exports = { initializeSocket, userSockets, io };
+module.exports = { initializeSocket, userSockets, io, sendNotificationToUser };

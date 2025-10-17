@@ -1,5 +1,5 @@
 const User = require('../models/User');
-const { io, userSockets } = require('../socketio');
+const { io, userSockets, sendNotificationToUser } = require('../socketio');
 
 /**
  * Global Search Users by Username
@@ -200,6 +200,15 @@ exports.sendFriendRequest = async (req, res) => {
 
     console.log(`✅ Friend request sent from ${currentUser.username} to ${targetUser.username}`);
 
+    // Send notification to target user
+    await sendNotificationToUser(toUserId, 'friendRequestReceived', {
+      fromUserId: fromUserId,
+      username: currentUser.username,
+      fullName: currentUser.fullName,
+      profileImage: currentUser.profileImage,
+      timestamp: new Date()
+    });
+
     res.json({ 
       success: true, 
       message: 'Friend request sent successfully' 
@@ -326,6 +335,15 @@ exports.acceptFriendRequest = async (req, res) => {
 
     console.log(`✅ Friend request accepted between ${currentUser.username} and ${senderUser.username}`);
 
+    // Send notification to the original sender
+    await sendNotificationToUser(fromUserId, 'friendRequestAccepted', {
+      fromUserId: currentUserId,
+      username: currentUser.username,
+      fullName: currentUser.fullName,
+      profileImage: currentUser.profileImage,
+      timestamp: new Date()
+    });
+
     res.json({ 
       success: true, 
       message: 'Friend request accepted successfully' 
@@ -387,6 +405,15 @@ exports.rejectFriendRequest = async (req, res) => {
     await currentUser.save();
 
     console.log(`✅ Friend request rejected from ${fromUserId} to ${currentUser.username}`);
+
+    // Send notification to the original sender
+    await sendNotificationToUser(fromUserId, 'friendRequestRejected', {
+      fromUserId: currentUserId,
+      username: currentUser.username,
+      fullName: currentUser.fullName,
+      profileImage: currentUser.profileImage,
+      timestamp: new Date()
+    });
 
     res.json({ 
       success: true, 
@@ -503,6 +530,15 @@ exports.removeFriend = async (req, res) => {
     await friendUser.save();
 
     console.log(`✅ Friend removed: ${currentUser.username} removed ${friendUser.username}`);
+
+    // Send notification to the removed friend
+    await sendNotificationToUser(friendId, 'friendUnfriended', {
+      fromUserId: currentUserId,
+      username: currentUser.username,
+      fullName: currentUser.fullName,
+      profileImage: currentUser.profileImage,
+      timestamp: new Date()
+    });
 
     res.json({ 
       success: true, 
