@@ -86,6 +86,7 @@ const initializeSocket = async (server) => {
 
     socket.on('register', async (profileId) => {
       console.log(`🔗 User ${profileId} connecting with socket ${socket.id}`);
+      console.log(`🔍 DEBUG: Socket registration - Before registration userSockets map:`, Array.from(userSockets.entries()));
       
       // Remove any existing socket for this user (handle reconnection)
       for (let [existingProfileId, existingSocketId] of userSockets) {
@@ -99,6 +100,7 @@ const initializeSocket = async (server) => {
       userSockets.set(profileId, socket.id);
       userLastPing.set(profileId, Date.now());
       console.log(`✅ User ${profileId} registered with socket ${socket.id}`);
+      console.log(`🔍 DEBUG: Socket registration - userSockets map after registration:`, Array.from(userSockets.entries()));
       
       // Update user online status and last seen
       const updateResult = await User.findOneAndUpdate(
@@ -128,13 +130,19 @@ const initializeSocket = async (server) => {
         });
       }
 
-      const undeliveredMessages = await Message.find({ receiverId: profileId }).sort({ timestamp: 1 });
+      // Only fetch messages that haven't been delivered yet
+      const undeliveredMessages = await Message.find({ 
+        receiverId: profileId,
+        status: { $ne: 'delivered' }
+      }).sort({ timestamp: 1 });
+      
+      console.log(`🔍 DEBUG: Found ${undeliveredMessages.length} undelivered messages for user ${profileId}`);
       
       if (undeliveredMessages.length > 0) {
         console.log(`📨 Delivering ${undeliveredMessages.length} undelivered messages to ${profileId}`);
         
-        // Notify senders that their messages are now delivered
-        const senderIds = [...new Set(undeliveredMessages.map(msg => msg.senderId))];
+        // Track delivered message IDs to prevent re-delivery
+        const deliveredMessageIds = [];
         
         // Process each undelivered message
         for (const msg of undeliveredMessages) {
@@ -142,18 +150,25 @@ const initializeSocket = async (server) => {
             // Decrypt the message for display
             const decryptedMessage = await decryptSingleMessage(msg);
             
+            // Get sender's username for notifications
+            const sender = await User.findOne({ profileId: msg.senderId });
+            
             const messageWithTime = {
               ...decryptedMessage,
               timestamp: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+              senderUsername: sender ? sender.username : 'Unknown User',
+              isDeliveredOnConnect: true // Flag to indicate this was delivered on connect
             };
             
             socket.emit('receiveMessage', messageWithTime);
             
-            // Update message status to delivered
+            // Update message status to delivered (but keep in database for read tracking)
             await Message.findByIdAndUpdate(msg._id, { 
               status: 'delivered', 
               deliveredAt: new Date() 
             });
+            
+            deliveredMessageIds.push(msg._id);
             
             // Notify sender that their message was delivered
             const senderSocketId = userSockets.get(msg.senderId);
@@ -172,12 +187,21 @@ const initializeSocket = async (server) => {
               content: '[Message could not be decrypted]',
               decryptionError: true,
               timestamp: new Date(msg.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+              isDeliveredOnConnect: true
             });
           }
         }
+        
+        // Delete all delivered messages after successful delivery
+        if (deliveredMessageIds.length > 0) {
+          const deleteResult = await Message.deleteMany({
+            _id: { $in: deliveredMessageIds }
+          });
+          console.log(`🗑️ DELETED ${deleteResult.deletedCount} delivered messages for user ${profileId}`);
+        }
+      } else {
+        console.log(`📭 No undelivered messages for ${profileId}`);
       }
-
-      await Message.deleteMany({ receiverId: profileId });
     });
 
     socket.on('sendMessage', async ({ senderId, receiverId, content }) => {
@@ -209,7 +233,24 @@ const initializeSocket = async (server) => {
             decryptedMessage.timestamp = messageWithTime.timestamp;
             decryptedMessage.status = 'delivered';
             decryptedMessage.deliveredAt = new Date();
+            
+            // Get sender's username for notifications
+            const sender = await User.findOne({ profileId: senderId });
+            decryptedMessage.senderUsername = sender ? sender.username : 'Unknown User';
+            
             io.to(receiverSocketId).emit('receiveMessage', decryptedMessage);
+            
+            // Delete the message after delivery (wait a bit to ensure frontend received it)
+            setTimeout(async () => {
+              try {
+                const deleteResult = await Message.findByIdAndDelete(savedMessage._id);
+                if (deleteResult) {
+                  console.log(`🗑️ DELETED real-time message ${savedMessage._id} after delivery to ${receiverId}`);
+                }
+              } catch (error) {
+                console.error('❌ Error deleting real-time message:', error);
+              }
+            }, 1000); // 1 second delay to ensure frontend received the message
           }
           
           // Notify sender that message was delivered
@@ -279,20 +320,60 @@ const initializeSocket = async (server) => {
       }
     });
 
+    socket.on('messageDelivered', async ({ messageId, receiverId }) => {
+      try {
+        console.log(`✅ Message ${messageId} delivered acknowledgment received from ${receiverId}`);
+        
+        // Delete the message after successful delivery acknowledgment
+        const deleteResult = await Message.findByIdAndDelete(messageId);
+        
+        if (deleteResult) {
+          console.log(`🗑️ DELETED message ${messageId} after delivery acknowledgment from ${receiverId}`);
+          
+          // Notify sender that message was delivered and deleted
+          const senderSocketId = userSockets.get(deleteResult.senderId);
+          if (senderSocketId) {
+            io.to(senderSocketId).emit('messageStatusUpdate', {
+              messageId: messageId,
+              status: 'delivered',
+              deliveredAt: new Date(),
+              deleted: true
+            });
+          }
+        } else {
+          console.log(`⚠️ Message ${messageId} not found for deletion`);
+        }
+      } catch (error) {
+        console.error('❌ Error handling message delivery acknowledgment:', error);
+      }
+    });
+
     socket.on('markMessagesAsRead', async ({ senderId, receiverId }) => {
       try {
+        console.log(`📖 Marking messages as read from ${senderId} to ${receiverId}`);
+        
         // Mark all messages from sender to receiver as read
-        await Message.updateMany(
-          { senderId: senderId, receiverId: receiverId, status: { $ne: 'read' } },
-          { status: 'read', readAt: new Date() }
+        const updateResult = await Message.updateMany(
+          { 
+            senderId: senderId, 
+            receiverId: receiverId, 
+            status: { $ne: 'read' } 
+          },
+          { 
+            status: 'read', 
+            readAt: new Date() 
+          }
         );
+        
+        console.log(`✅ Marked ${updateResult.modifiedCount} messages as read`);
 
         // Notify sender that messages were read
         const senderSocketId = userSockets.get(senderId);
         if (senderSocketId) {
           io.to(senderSocketId).emit('messagesRead', {
             receiverId: receiverId,
-            readAt: new Date()
+            readAt: new Date(),
+            messageCount: updateResult.modifiedCount
           });
           
           // Also send individual message status updates for each read message
@@ -306,7 +387,7 @@ const initializeSocket = async (server) => {
             io.to(senderSocketId).emit('messageStatusUpdate', {
               messageId: msg._id,
               status: 'read',
-              readAt: new Date()
+              readAt: msg.readAt || new Date()
             });
           });
         }

@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Container, Row, Col, Form, Button, Badge, Spinner, Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import io from 'socket.io-client';
 import UserSearchIcon from './icons/UserSearchIcon';
 import FriendRequestIcon from './icons/FriendRequestIcon';
 import LogoutIcon from '../Logout.png';
@@ -10,17 +9,36 @@ import Logo from '../Logo.png';
 import FriendRequests from './FriendRequests';
 import MessageStatus from './MessageStatus';
 import CustomAlert from './CustomAlert';
+// import NotificationTest from './NotificationTest'; // Removed for production
+import { useNotifications } from '../contexts/NotificationContext';
+import { useSocket } from '../contexts/SocketContext';
 import './styles/modern-theme.css';
-
-const socket = io(process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000');
-
-// Make socket available globally for App component
-window.socketInstance = socket;
 
 const FriendsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [friends, setFriends] = useState([]);
-  const [filteredFriends, setFilteredFriends] = useState([]);
+  // Store UI-only data for persistence across re-renders
+  const [uiState, setUiState] = useState(() => {
+    // Load from localStorage on initialization
+    try {
+      const saved = localStorage.getItem('sparrow_ui_state');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          unreadCounts: parsed.unreadCounts || {},
+          lastMovedAt: parsed.lastMovedAt || {},
+          readMessageIds: new Set(parsed.readMessageIds || []) // Track read messages
+        };
+      }
+    } catch (error) {
+      console.warn('Failed to load UI state from localStorage:', error);
+    }
+    return {
+      unreadCounts: {},
+      lastMovedAt: {},
+      readMessageIds: new Set()
+    };
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [friendRequestsCount, setFriendRequestsCount] = useState(0);
@@ -30,7 +48,22 @@ const FriendsPage = () => {
   const [showRemoveAlert, setShowRemoveAlert] = useState(false);
   const [friendToRemove, setFriendToRemove] = useState(null);
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
+  const [showChatView, setShowChatView] = useState(false); // For mobile view switching
   const navigate = useNavigate();
+  
+  // Notification system
+  const { 
+    notifyMessageReceived, 
+    notifyFriendRequestReceived,
+    notifyFriendRequestAccepted,
+    notifyFriendRequestRejected,
+    notifyFriendUnfriended,
+    requestBrowserPermission 
+  } = useNotifications();
+
+  // Socket context
+  const { socket, reRegisterSocket } = useSocket();
+
 
   const fetchFriends = useCallback(async () => {
     setLoading(true);
@@ -46,8 +79,42 @@ const FriendsPage = () => {
       
       if (response.data.success) {
         const friendsData = response.data.friends;
-        setFriends(friendsData);
-        setFilteredFriends(friendsData);
+        
+        // MERGE LOGIC: Preserve client-local state that is newer than fetched data
+        setFriends(prevFriends => {
+          const updatedFriends = friendsData.map(newFriend => {
+            const existingFriend = prevFriends.find(f => f.profileId === newFriend.profileId);
+            const clientUnreadCount = uiState.unreadCounts[newFriend.profileId] || 0;
+            const clientLastMoved = uiState.lastMovedAt[newFriend.profileId] || 0;
+            
+            // Use client unread count if it's higher (newer messages received)
+            const preservedUnreadCount = Math.max(
+              existingFriend?.unreadMessages || 0,
+              clientUnreadCount
+            );
+            
+            // Preserve lastMovedAt from client if it's more recent
+            const preservedLastMoved = clientLastMoved > (existingFriend?.lastMovedAt || 0) 
+              ? clientLastMoved 
+              : existingFriend?.lastMovedAt;
+            
+            return {
+              ...newFriend,
+              unreadMessages: preservedUnreadCount,
+              lastMovedAt: preservedLastMoved
+            };
+          });
+          
+          // Sort by lastMovedAt to maintain move-to-top order
+          updatedFriends.sort((a, b) => {
+            const aTime = a.lastMovedAt || 0;
+            const bTime = b.lastMovedAt || 0;
+            return bTime - aTime; // Most recent first
+          });
+          
+          return updatedFriends;
+        });
+        
       } else {
         setError(response.data.message || 'Failed to fetch friends');
       }
@@ -63,7 +130,7 @@ const FriendsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, navigate]);
+  }, [searchQuery, navigate]); // Remove uiState dependency to prevent unnecessary re-fetches
 
   const fetchFriendRequestsCount = useCallback(async () => {
     try {
@@ -91,7 +158,33 @@ const FriendsPage = () => {
   useEffect(() => {
     fetchFriends();
     fetchFriendRequestsCount();
-  }, [fetchFriends, fetchFriendRequestsCount]);
+    
+    // Request notification permission on component mount
+    requestBrowserPermission();
+    
+    // Re-register socket when component mounts (in case user just logged in)
+    const profileId = localStorage.getItem('profileId');
+    if (profileId && reRegisterSocket) {
+      console.log('🔍 DEBUG: FriendsPage - Re-registering socket on mount');
+      setTimeout(() => reRegisterSocket(), 100); // Small delay to ensure socket is ready
+    }
+  }, []); // Only run once on mount
+
+  // Persist UI state to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      // Limit readMessageIds to last 1000 to prevent localStorage bloat
+      const limitedReadIds = Array.from(uiState.readMessageIds).slice(-1000);
+      
+      const serializableState = {
+        ...uiState,
+        readMessageIds: limitedReadIds
+      };
+      localStorage.setItem('sparrow_ui_state', JSON.stringify(serializableState));
+    } catch (error) {
+      console.warn('Failed to save UI state to localStorage:', error);
+    }
+  }, [uiState]);
 
   // Handle escape key to close chat
   useEffect(() => {
@@ -111,90 +204,172 @@ const FriendsPage = () => {
     };
   }, [currentFriend]);
 
+  // Refetch friends when search query changes
   useEffect(() => {
-    // Filter friends based on search query
+    if (searchQuery !== undefined) { // Only refetch if searchQuery has been set
+      fetchFriends();
+    }
+  }, [searchQuery, fetchFriends]);
+
+  // Memoize filtered friends to prevent unnecessary re-renders
+  const filteredFriends = useMemo(() => {
     if (searchQuery.trim().length === 0) {
-      setFilteredFriends(friends);
+      return friends;
     } else {
-      const filtered = friends.filter(friend =>
+      return friends.filter(friend =>
         friend.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (friend.fullName && friend.fullName.toLowerCase().includes(searchQuery.toLowerCase()))
       );
-      setFilteredFriends(filtered);
     }
   }, [searchQuery, friends]);
 
+  // Handle responsive behavior on window resize
   useEffect(() => {
-    // Socket.IO setup for real-time messaging
-    const profileId = localStorage.getItem('profileId');
-    if (profileId) {
-      socket.emit('register', profileId);
-    }
-
-    // Set up heartbeat to maintain connection
-    const heartbeatInterval = setInterval(() => {
-      if (socket.connected) {
-        const profileId = localStorage.getItem('profileId');
-        socket.emit('ping', profileId);
+    const handleResize = () => {
+      // On desktop/tablet, always show both views
+      if (window.innerWidth >= 768) {
+        setShowChatView(false);
       }
-    }, 25000); // Send ping every 25 seconds
+    };
 
-    // Handle connection status
-    socket.on('connect', () => {
-      console.log('🔗 Socket connected');
-      if (profileId) {
-        socket.emit('register', profileId);
+    window.addEventListener('resize', handleResize);
+    
+    // Initial check
+    handleResize();
+
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Set up socket event listeners for UI updates - separate useEffect with minimal dependencies
+  useEffect(() => {
+    if (!socket) return;
+
+    console.log('🔍 DEBUG: FriendsPage - Setting up socket event listeners');
+
+    // Clean up any existing listeners first to prevent duplicates
+    socket.off('receiveMessage');
+    socket.off('messageSent');
+    socket.off('messagesRead');
+    socket.off('messageStatusUpdate');
+    socket.off('friendOnlineStatus');
+    socket.off('friend_request_received');
+
+    const handleReceiveMessage = (message) => {
+      console.log('🔍 DEBUG: FriendsPage - received receiveMessage event:', message);
+      
+      // Validate sender username/id
+      if (!message.senderUsername && !message.senderId) {
+        console.log('⚠️ RECEIVE: No senderUsername or senderId found in message, skipping');
+        return;
       }
-    });
-
-    socket.on('disconnect', () => {
-      console.log('🔌 Socket disconnected');
-    });
-
-    socket.on('pong', () => {
-      console.log('🏓 Pong received');
-    });
-
-    socket.on('receiveMessage', (message) => {
-      console.log('📨 Message received:', message);
       
-      // Move the sender to the top of the friends list immediately
-      moveFriendToTop(message.senderId);
+      // Check if this message was already processed (deduplication)
+      const messageId = message._id || message.id;
+      if (messageId && uiState.readMessageIds.has(messageId)) {
+        console.log(`🔄 RECEIVE: Message ${messageId} already processed, skipping duplicate`);
+        return;
+      }
       
-      // Update messages state
+      // Skip notification if this was delivered on connect (already seen)
+      if (message.isDeliveredOnConnect) {
+        console.log(`📭 RECEIVE: Message delivered on connect, skipping notification`);
+        
+        // Still add to messages but don't trigger notifications
+        setMessages(prev => ({
+          ...prev,
+          [message.senderId]: [...(prev[message.senderId] || []), message]
+        }));
+        
+        // Mark as read since it was delivered on connect
+        if (messageId) {
+          setUiState(prev => ({
+            ...prev,
+            readMessageIds: new Set([...prev.readMessageIds, messageId])
+          }));
+        }
+        return;
+      }
+      
+      // Update messages state first
       setMessages(prev => ({
         ...prev,
         [message.senderId]: [...(prev[message.senderId] || []), message]
       }));
 
+      // Send delivery acknowledgment to server (but not for messages delivered on connect)
+      if (!message.isDeliveredOnConnect && message._id && socket && socket.connected) {
+        console.log(`✅ Sending delivery acknowledgment for message ${message._id}`);
+        socket.emit('messageDelivered', {
+          messageId: message._id,
+          receiverId: localStorage.getItem('profileId')
+        });
+      }
+
       // Check if this is from the currently active chat
       const currentUserId = localStorage.getItem('profileId');
       const isFromCurrentChat = currentFriend && currentFriend.profileId === message.senderId;
       
-      if (isFromCurrentChat) {
+      // Move friend to top and update unread count (if not current chat)
+      if (!isFromCurrentChat) {
+        const currentTime = Date.now();
+        
+        setFriends(prevFriends => {
+          const friendIndex = prevFriends.findIndex(f => f.profileId === message.senderId);
+          if (friendIndex === -1) {
+            console.log('⚠️ RECEIVE: Friend not found in friends list:', message.senderId);
+            return prevFriends;
+          }
+          
+          // Create updated friends array with sender moved to top
+          const updatedFriends = [...prevFriends];
+          const [senderFriend] = updatedFriends.splice(friendIndex, 1);
+          
+          // Update unread count
+          const updatedSenderFriend = {
+            ...senderFriend,
+            unreadMessages: (senderFriend.unreadMessages || 0) + 1,
+            lastMovedAt: currentTime
+          };
+          
+          updatedFriends.unshift(updatedSenderFriend);
+          
+          console.log(`📋 RECEIVE: Moved friend to top and updated unread count: ${updatedSenderFriend.username}, count: ${updatedSenderFriend.unreadMessages}`);
+          
+          return updatedFriends;
+        });
+        
+        // Update UI state for persistence
+        setUiState(prev => ({
+          ...prev,
+          unreadCounts: {
+            ...prev.unreadCounts,
+            [message.senderId]: (prev.unreadCounts[message.senderId] || 0) + 1
+          },
+          lastMovedAt: {
+            ...prev.lastMovedAt,
+            [message.senderId]: currentTime
+          }
+        }));
+        
+      } else {
         // If message is from current chat, mark as read immediately
-        console.log('📖 Auto-marking received message as read (current chat)');
+        console.log('📖 RECEIVE: Auto-marking received message as read (current chat)');
         setTimeout(() => {
           markMessagesAsRead(message.senderId);
-        }, 100); // Reduced delay for faster response
-      } else {
-        // Update unread count for friends
-        setFriends(prevFriends =>
-          prevFriends.map(friend => {
-            if (friend.profileId === message.senderId) {
-              return {
-                ...friend,
-                unreadMessages: (friend.unreadMessages || 0) + 1,
-              };
-            }
-            return friend;
-          })
-        );
+        }, 100);
       }
-    });
+      
+      // Mark message as processed to prevent duplicate notifications
+      if (messageId) {
+        setUiState(prev => ({
+          ...prev,
+          readMessageIds: new Set([...prev.readMessageIds, messageId])
+        }));
+      }
+    };
 
-    socket.on('messageSent', (message) => {
-      console.log('✅ Message sent confirmation:', message);
+    const handleMessageSent = (message) => {
+      console.log('✅ FriendsPage - Message sent confirmation:', message);
       
       // Replace any temporary messages with the real message
       setMessages(prev => {
@@ -217,10 +392,10 @@ const FriendsPage = () => {
         updated[message.receiverId] = chatMessages;
         return updated;
       });
-    });
+    };
 
-    socket.on('messagesRead', (data) => {
-      console.log('📖 Messages read by:', data.receiverId);
+    const handleMessagesRead = (data) => {
+      console.log('📖 FriendsPage - Messages read by:', data.receiverId);
       
       // Update message status to read for messages sent to this receiver
       setMessages(prev => {
@@ -245,10 +420,10 @@ const FriendsPage = () => {
         
         return updated;
       });
-    });
+    };
 
-    socket.on('messageStatusUpdate', (data) => {
-      console.log('📊 Message status update:', data);
+    const handleMessageStatusUpdate = (data) => {
+      console.log('📊 FriendsPage - Message status update:', data);
       
       // Update specific message status
       setMessages(prev => {
@@ -272,10 +447,10 @@ const FriendsPage = () => {
         
         return updated;
       });
-    });
+    };
 
-    socket.on('friendOnlineStatus', (data) => {
-      console.log('Friend online status:', data);
+    const handleFriendOnlineStatus = (data) => {
+      console.log('🔍 DEBUG: FriendsPage - Friend online status:', data);
       setFriends(prevFriends =>
         prevFriends.map(f =>
           f.profileId === data.profileId
@@ -283,31 +458,60 @@ const FriendsPage = () => {
             : f
         )
       );
-    });
-
-    return () => {
-      clearInterval(heartbeatInterval);
-      socket.off('receiveMessage');
-      socket.off('messageSent');
-      socket.off('messagesRead');
-      socket.off('messageStatusUpdate');
-      socket.off('friendOnlineStatus');
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('pong');
     };
-  }, []);
 
-  const markMessagesAsRead = (friendId) => {
+    const handleFriendRequestReceived = (data) => {
+      console.log('🔍 DEBUG: FriendsPage - received friend_request_received event for count update:', data);
+      // Update friend requests count
+      setFriendRequestsCount(prev => prev + 1);
+    };
+
+    // Register event listeners
+    socket.on('receiveMessage', handleReceiveMessage);
+    socket.on('messageSent', handleMessageSent);
+    socket.on('messagesRead', handleMessagesRead);
+    socket.on('messageStatusUpdate', handleMessageStatusUpdate);
+    socket.on('friendOnlineStatus', handleFriendOnlineStatus);
+    socket.on('friend_request_received', handleFriendRequestReceived);
+
+    console.log('🔍 DEBUG: FriendsPage - Socket event listeners registered');
+
+    // Cleanup function
+    return () => {
+      console.log('🔍 DEBUG: FriendsPage - Removing socket event listeners');
+      socket.off('receiveMessage', handleReceiveMessage);
+      socket.off('messageSent', handleMessageSent);
+      socket.off('messagesRead', handleMessagesRead);
+      socket.off('messageStatusUpdate', handleMessageStatusUpdate);
+      socket.off('friendOnlineStatus', handleFriendOnlineStatus);
+      socket.off('friend_request_received', handleFriendRequestReceived);
+    };
+  }, [socket]); // Only depend on socket - other dependencies will cause re-renders
+
+  const markMessagesAsRead = useCallback((friendId) => {
     const currentUserId = localStorage.getItem('profileId');
     if (currentUserId && friendId) {
       console.log(`📖 Marking messages from ${friendId} as read`);
-      socket.emit('markMessagesAsRead', {
-        senderId: friendId,
-        receiverId: currentUserId
-      });
+      
+      // Mark all messages from this friend as read in local state
+      const friendMessages = messages[friendId] || [];
+      const messageIds = friendMessages.map(msg => msg._id || msg.id).filter(Boolean);
+      
+      if (messageIds.length > 0) {
+        setUiState(prev => ({
+          ...prev,
+          readMessageIds: new Set([...prev.readMessageIds, ...messageIds])
+        }));
+      }
+      
+      if (socket) {
+        socket.emit('markMessagesAsRead', {
+          senderId: friendId,
+          receiverId: currentUserId
+        });
+      }
     }
-  };
+  }, [messages, socket]);
 
   // Auto-mark messages as read when chat is visible and user is active
   useEffect(() => {
@@ -381,8 +585,10 @@ const FriendsPage = () => {
     });
   };
 
-  // Helper function to move a friend to the top of the friends list
-  const moveFriendToTop = (profileId) => {
+  // SHARED FUNCTION: Consistent move-to-top logic for both send and receive
+  const moveFriendToTop = useCallback((profileId) => {
+    const currentTime = Date.now();
+    
     setFriends(prevFriends => {
       const friendIndex = prevFriends.findIndex(f => f.profileId === profileId);
       if (friendIndex === -1 || friendIndex === 0) {
@@ -393,30 +599,34 @@ const FriendsPage = () => {
       // Move friend to the top
       const reorderedFriends = [...prevFriends];
       const [friendToMove] = reorderedFriends.splice(friendIndex, 1);
-      reorderedFriends.unshift(friendToMove);
+      
+      // Update lastMovedAt timestamp
+      const updatedFriend = {
+        ...friendToMove,
+        lastMovedAt: currentTime
+      };
+      
+      reorderedFriends.unshift(updatedFriend);
       
       return reorderedFriends;
     });
     
-    // Also update filtered friends if not searching
-    if (!searchQuery.trim()) {
-      setFilteredFriends(prevFiltered => {
-        const friendIndex = prevFiltered.findIndex(f => f.profileId === profileId);
-        if (friendIndex === -1 || friendIndex === 0) {
-          return prevFiltered;
-        }
-        
-        const reorderedFiltered = [...prevFiltered];
-        const [friendToMove] = reorderedFiltered.splice(friendIndex, 1);
-        reorderedFiltered.unshift(friendToMove);
-        
-        return reorderedFiltered;
-      });
-    }
-  };
+    // Update UI state for persistence
+    setUiState(prev => ({
+      ...prev,
+      lastMovedAt: {
+        ...prev.lastMovedAt,
+        [profileId]: currentTime
+      }
+    }));
+    
+  }, []);
 
   const handleSelectFriend = (friend) => {
     setCurrentFriend(friend);
+    
+    // Switch to chat view on mobile
+    setShowChatView(true);
     
     // Reset unread messages count for the selected friend
     setFriends(prevFriends =>
@@ -426,6 +636,17 @@ const FriendsPage = () => {
           : f
       )
     );
+    
+    // Update UI state to reset unread count
+    setUiState(prev => ({
+      ...prev,
+      unreadCounts: {
+        ...prev.unreadCounts,
+        [friend.profileId]: 0
+      }
+    }));
+
+    console.log('📖 Reset unread count for friend:', friend.username);
 
     // Mark messages as read when friend is selected
     markMessagesAsRead(friend.profileId);
@@ -461,13 +682,16 @@ const FriendsPage = () => {
 
     try {
       // Send via Socket.IO for real-time updates
-      socket.emit('sendMessage', {
-        senderId: profileId,
-        receiverId: currentFriend.profileId,
-        content: message
-      });
-
-      console.log('📤 Message sent via Socket.IO');
+      if (socket) {
+        socket.emit('sendMessage', {
+          senderId: profileId,
+          receiverId: currentFriend.profileId,
+          content: message
+        });
+        console.log('📤 Message sent via Socket.IO');
+      } else {
+        console.log('⚠️ Socket not available, falling back to REST API');
+      }
     } catch (error) {
       console.error('Error sending message via Socket.IO:', error);
       
@@ -531,7 +755,6 @@ const FriendsPage = () => {
       if (response.data.success) {
         // Remove friend from local state
         setFriends(prevFriends => prevFriends.filter(f => f.profileId !== friendToRemove.profileId));
-        setFilteredFriends(prevFriends => prevFriends.filter(f => f.profileId !== friendToRemove.profileId));
         
         // If the removed friend was currently selected, clear the selection
         if (currentFriend?.profileId === friendToRemove.profileId) {
@@ -578,7 +801,7 @@ const FriendsPage = () => {
       
       // Notify Socket.IO server about logout
       const profileId = localStorage.getItem('profileId');
-      if (profileId) {
+      if (profileId && socket) {
         console.log('📡 Notifying server about logout via Socket.IO');
         socket.emit('logout', { profileId });
         
@@ -587,8 +810,10 @@ const FriendsPage = () => {
       }
       
       // Disconnect Socket.IO
-      socket.disconnect();
-      console.log('🔌 Socket.IO disconnected');
+      if (socket) {
+        socket.disconnect();
+        console.log('🔌 Socket.IO disconnected');
+      }
       
       // Call REST API logout
         await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/auth/logout`, {
@@ -609,7 +834,9 @@ const FriendsPage = () => {
       console.error('Error during logout:', error);
       
       // Force disconnect and clear data even if API fails
-      socket.disconnect();
+      if (socket) {
+        socket.disconnect();
+      }
       localStorage.clear();
       navigate('/login');
     } finally {
@@ -623,8 +850,14 @@ const FriendsPage = () => {
 
   const handleRequestHandled = () => {
     // Refresh friends list when a request is accepted
+    console.log('🔍 DEBUG: FriendsPage - Friend request handled, refreshing data');
     fetchFriends();
     fetchFriendRequestsCount();
+  };
+
+  const handleBackToFriends = () => {
+    setShowChatView(false);
+    setCurrentFriend(null);
   };
 
 
@@ -646,7 +879,7 @@ const FriendsPage = () => {
                   onClick={() => navigate('/global-search')}
                 >
                   <UserSearchIcon size={16} className="me-1" />
-                  Find Friends
+                  <span className="d-none-mobile">Find Friends</span>
                 </Button>
                 <div className="position-relative me-3">
                   <Button 
@@ -654,7 +887,7 @@ const FriendsPage = () => {
                     onClick={() => setShowFriendRequests(true)}
                   >
                     <FriendRequestIcon size={16} className="me-1" />
-                    Requests
+                    <span className="d-none-mobile">Requests</span>
                     {friendRequestsCount > 0 && (
                       <Badge 
                         className="badge-modern ms-1"
@@ -683,7 +916,7 @@ const FriendsPage = () => {
 
         <Row className="content-row" style={{ height: 'calc(100vh - 80px)' }}>
           {/* Friends List */}
-          <Col xs={4} className="friends-list-container">
+          <Col xs={12} md={4} className={`friends-list-container ${showChatView ? 'd-none d-md-block' : ''}`}>
             <div className="p-3 h-100 d-flex flex-column">
               <Form.Group className="mb-3 flex-shrink-0">
                 <Form.Control
@@ -694,6 +927,8 @@ const FriendsPage = () => {
                   className="search-input"
                 />
               </Form.Group>
+
+              {/* Notification Test Panel - Removed after testing */}
 
             {error && (
               <Alert variant="danger" onClose={() => setError('')} dismissible className="flex-shrink-0">
@@ -792,14 +1027,15 @@ const FriendsPage = () => {
         </Col>
 
           {/* Chat Area */}
-          <Col xs={8} className="chat-container">
+          <Col xs={12} md={8} className={`chat-container ${!showChatView ? 'd-none d-md-block' : ''}`}>
             {currentFriend ? (
               <ChatArea 
                 friend={currentFriend} 
                 messages={messages[currentFriend.profileId] || []}
                 onSendMessage={handleSendMessage}
-                onCloseChat={() => setCurrentFriend(null)}
+                onCloseChat={handleBackToFriends}
                 onRemoveFriend={handleRemoveFriend}
+                showBackButton={showChatView}
               />
             ) : (
               <div className="d-flex align-items-center justify-content-center h-100">
@@ -849,7 +1085,7 @@ const FriendsPage = () => {
 };
 
 // Chat Area Component
-const ChatArea = ({ friend, messages, onSendMessage, onCloseChat, onRemoveFriend }) => {
+const ChatArea = ({ friend, messages, onSendMessage, onCloseChat, onRemoveFriend, showBackButton = false }) => {
   const [message, setMessage] = useState('');
 
   const handleSend = () => {
@@ -889,6 +1125,16 @@ const ChatArea = ({ friend, messages, onSendMessage, onCloseChat, onRemoveFriend
       <div className="chat-header">
         <div className="d-flex align-items-center justify-content-between">
           <div className="d-flex align-items-center">
+            {/* Back Button for Mobile */}
+            {showBackButton && (
+              <Button
+                className="btn-modern-icon me-2 d-md-none"
+                onClick={onCloseChat}
+                title="Back to friends list"
+              >
+                ←
+              </Button>
+            )}
             <div className="me-3">
               {friend.profileImage ? (
                 <img
@@ -936,7 +1182,7 @@ const ChatArea = ({ friend, messages, onSendMessage, onCloseChat, onRemoveFriend
               size="sm"
               onClick={() => onRemoveFriend(friend)}
               title="Remove friend"
-              className="me-2"
+              className="me-2 d-none d-md-inline-flex"
               style={{ 
                 padding: '6px 12px',
                 fontSize: '12px',
@@ -947,7 +1193,7 @@ const ChatArea = ({ friend, messages, onSendMessage, onCloseChat, onRemoveFriend
               Remove Friend
             </Button>
             <Button
-              className="btn-modern-icon"
+              className="btn-modern-icon d-none d-md-flex"
               onClick={onCloseChat}
               title="Close chat (Escape)"
             >

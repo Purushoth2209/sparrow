@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const { io, userSockets } = require('../socketio');
 
 /**
  * Global Search Users by Username
@@ -199,6 +200,18 @@ exports.sendFriendRequest = async (req, res) => {
 
     console.log(`✅ Friend request sent from ${currentUser.username} to ${targetUser.username}`);
 
+    // Emit Socket.IO event to notify the target user
+    const targetSocketId = userSockets.get(toUserId);
+    if (targetSocketId && io) {
+      io.to(targetSocketId).emit('friend_request_received', {
+        senderName: currentUser.username,
+        senderUsername: currentUser.username,
+        senderId: fromUserId,
+        timestamp: new Date()
+      });
+      console.log(`📡 Notified user ${toUserId} about friend request from ${currentUser.username}`);
+    }
+
     res.json({ 
       success: true, 
       message: 'Friend request sent successfully' 
@@ -325,6 +338,18 @@ exports.acceptFriendRequest = async (req, res) => {
 
     console.log(`✅ Friend request accepted between ${currentUser.username} and ${senderUser.username}`);
 
+    // Emit Socket.IO event to notify the sender
+    const senderSocketId = userSockets.get(fromUserId);
+    if (senderSocketId && io) {
+      io.to(senderSocketId).emit('friend_request_accepted', {
+        accepterName: currentUser.username,
+        accepterUsername: currentUser.username,
+        accepterId: currentUserId,
+        timestamp: new Date()
+      });
+      console.log(`📡 Notified user ${fromUserId} about friend request acceptance by ${currentUser.username}`);
+    }
+
     res.json({ 
       success: true, 
       message: 'Friend request accepted successfully' 
@@ -386,6 +411,18 @@ exports.rejectFriendRequest = async (req, res) => {
     await currentUser.save();
 
     console.log(`✅ Friend request rejected from ${fromUserId} to ${currentUser.username}`);
+
+    // Emit Socket.IO event to notify the sender
+    const senderSocketId = userSockets.get(fromUserId);
+    if (senderSocketId && io) {
+      io.to(senderSocketId).emit('friend_request_rejected', {
+        rejecterName: currentUser.username,
+        rejecterUsername: currentUser.username,
+        rejecterId: currentUserId,
+        timestamp: new Date()
+      });
+      console.log(`📡 Notified user ${fromUserId} about friend request rejection by ${currentUser.username}`);
+    }
 
     res.json({ 
       success: true, 
@@ -502,6 +539,18 @@ exports.removeFriend = async (req, res) => {
     await friendUser.save();
 
     console.log(`✅ Friend removed: ${currentUser.username} removed ${friendUser.username}`);
+
+    // Emit Socket.IO event to notify the removed friend
+    const removedFriendSocketId = userSockets.get(friendId);
+    if (removedFriendSocketId && io) {
+      io.to(removedFriendSocketId).emit('friend_unfriended', {
+        unfrienderName: currentUser.username,
+        unfrienderUsername: currentUser.username,
+        unfrienderId: currentUserId,
+        timestamp: new Date()
+      });
+      console.log(`📡 Notified user ${friendId} about being unfriended by ${currentUser.username}`);
+    }
 
     res.json({ 
       success: true, 

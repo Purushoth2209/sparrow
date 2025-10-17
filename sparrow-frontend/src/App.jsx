@@ -5,6 +5,9 @@ import Signup from './components/Signup';
 import FriendsPage from './components/FriendsPage';
 import GlobalSearch from './components/GlobalSearch';
 import UsernameSetup from './components/UsernameSetup';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { SocketProvider } from './contexts/SocketContext';
+import NotificationContainer from './components/NotificationContainer';
 import './components/styles/modern-theme.css';
 
 // PrivateRoute Component to protect authenticated pages
@@ -284,24 +287,31 @@ const App = () => {
   }, []);
 
   return (
-    <Router>
-      <div className="app-container">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/setup-username" element={<UsernameSetup />} />
-          <Route
-            path="/friends"
-            element={<PrivateRoute element={<FriendsPage />} />}
-          />  {/* Protected route for friends page (default) */}
-          <Route
-            path="/global-search"
-            element={<PrivateRoute element={<GlobalSearch />} />}
-          />  {/* Protected route for global search */}
-          <Route path="/" element={<Navigate to="/friends" replace />} />
-        </Routes>
-      </div>
-    </Router>
+    <NotificationProvider>
+      <SocketProvider>
+        <Router>
+          <div className="app-container">
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/setup-username" element={<UsernameSetup />} />
+              <Route
+                path="/friends"
+                element={<PrivateRoute element={<FriendsPage />} />}
+              />  {/* Protected route for friends page (default) */}
+              <Route
+                path="/global-search"
+                element={<PrivateRoute element={<GlobalSearch />} />}
+              />  {/* Protected route for global search */}
+              <Route path="/" element={<Navigate to="/friends" replace />} />
+            </Routes>
+            
+            {/* Global Notification Container */}
+            <NotificationContainer />
+          </div>
+        </Router>
+      </SocketProvider>
+    </NotificationProvider>
   );
 };
 
