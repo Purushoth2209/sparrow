@@ -1,9 +1,14 @@
 const Message = require('../models/Message');
 const User = require('../models/User');
-const KMSEnvelopeEncryption = require('../utils/kmsEncryption');
+const OptimizedKMSEnvelopeEncryption = require('../utils/optimizedKmsEncryption');
 
-// Initialize the encryption service
-const encryptionService = new KMSEnvelopeEncryption();
+// Initialize the optimized encryption service with DEK caching
+const encryptionService = new OptimizedKMSEnvelopeEncryption({
+  dekRotationInterval: 30 * 60 * 1000, // 30 minutes
+  dekMaxAge: 60 * 60 * 1000, // 1 hour max age
+  batchTimeout: 50, // 50ms batch window
+  batchSize: 10 // Max 10 messages per batch
+});
 
 async function sendMessage(senderId, receiverId, content) {
   try {
@@ -17,8 +22,11 @@ async function sendMessage(senderId, receiverId, content) {
       throw new Error('Cannot send message to non-friend user');
     }
 
-    // Encrypt the message content using KMS envelope encryption
-    const encryptedPackage = await encryptionService.encryptMessageComplete(content);
+    // Create session ID for DEK caching (based on sender-receiver pair)
+    const sessionId = `${senderId}-${receiverId}`;
+
+    // Encrypt the message content using optimized DEK caching
+    const encryptedPackage = await encryptionService.encryptMessageOptimized(content, sessionId);
 
     // Create message with encrypted content
     const message = new Message({
@@ -34,6 +42,7 @@ async function sendMessage(senderId, receiverId, content) {
       keyId: encryptedPackage.keyId,
       encryptionContext: encryptedPackage.encryptionContext,
       encryptionVersion: encryptedPackage.version,
+      sessionId: encryptedPackage.sessionId, // Store session ID for optimized decryption
       timestamp: new Date(),
       status: 'sent'
     });
@@ -108,16 +117,20 @@ async function getDecryptedMessages(userId, friendId = null) {
       messages.map(async (message) => {
         try {
           if (message.isEncrypted) {
-            // Decrypt encrypted message
-            const decryptedContent = await encryptionService.decryptMessageComplete({
+            // Create session ID for optimized decryption
+            const sessionId = message.sessionId || `${message.senderId}-${message.receiverId}`;
+            
+            // Decrypt encrypted message using optimized service
+            const decryptedContent = await encryptionService.decryptMessageOptimized({
               encryptedContent: message.encryptedContent,
               iv: message.iv,
               authTag: message.authTag,
               algorithm: message.algorithm,
               encryptedDEK: message.encryptedDEK,
               keyId: message.keyId,
-              encryptionContext: message.encryptionContext
-            });
+              encryptionContext: message.encryptionContext,
+              sessionId: message.sessionId
+            }, sessionId);
 
             // Return message with decrypted content
             const messageObj = message.toObject ? message.toObject() : message;
@@ -169,16 +182,20 @@ async function decryptSingleMessage(message) {
       return message; // Return as-is if not encrypted
     }
 
-    // Decrypt the message
-    const decryptedContent = await encryptionService.decryptMessageComplete({
+    // Create session ID for optimized decryption
+    const sessionId = message.sessionId || `${message.senderId}-${message.receiverId}`;
+
+    // Decrypt the message using optimized service
+    const decryptedContent = await encryptionService.decryptMessageOptimized({
       encryptedContent: message.encryptedContent,
       iv: message.iv,
       authTag: message.authTag,
       algorithm: message.algorithm,
       encryptedDEK: message.encryptedDEK,
       keyId: message.keyId,
-      encryptionContext: message.encryptionContext
-    });
+      encryptionContext: message.encryptionContext,
+      sessionId: message.sessionId
+    }, sessionId);
 
     // Return message with decrypted content
     const messageObj = message.toObject ? message.toObject() : message;
@@ -207,12 +224,102 @@ async function decryptSingleMessage(message) {
 }
 
 /**
+ * Send multiple messages in batch for improved performance
+ * @param {Array} messages - Array of {senderId, receiverId, content} objects
+ * @returns {Array} Array of saved messages
+ */
+async function sendBatchMessages(messages) {
+  try {
+    if (!Array.isArray(messages) || messages.length === 0) {
+      throw new Error('Messages array is required and cannot be empty');
+    }
+
+    // Group messages by sender-receiver pair for efficient DEK usage
+    const messageGroups = new Map();
+    
+    for (const msg of messages) {
+      const sessionId = `${msg.senderId}-${msg.receiverId}`;
+      if (!messageGroups.has(sessionId)) {
+        messageGroups.set(sessionId, []);
+      }
+      messageGroups.get(sessionId).push(msg);
+    }
+
+    const savedMessages = [];
+
+    // Process each group
+    for (const [sessionId, groupMessages] of messageGroups) {
+      // Validate friendships for all messages in this group
+      const senderId = groupMessages[0].senderId;
+      const sender = await User.findOne({ profileId: senderId });
+      if (!sender) {
+        throw new Error(`Sender ${senderId} not found`);
+      }
+
+      // Batch encrypt messages for this session
+      const encryptedMessages = await encryptionService.batchEncryptMessages(
+        groupMessages.map(msg => ({ id: msg.id || Date.now(), content: msg.content })),
+        sessionId
+      );
+
+      // Create and save messages
+      for (let i = 0; i < groupMessages.length; i++) {
+        const msg = groupMessages[i];
+        const encryptedPackage = encryptedMessages[i];
+
+        // Validate friendship
+        if (!sender.friends.includes(msg.receiverId)) {
+          throw new Error(`Cannot send message to non-friend user ${msg.receiverId}`);
+        }
+
+        const message = new Message({
+          senderId: msg.senderId,
+          receiverId: msg.receiverId,
+          isEncrypted: true,
+          encryptedContent: encryptedPackage.encryptedContent,
+          iv: encryptedPackage.iv,
+          authTag: encryptedPackage.authTag,
+          algorithm: encryptedPackage.algorithm,
+          encryptedDEK: encryptedPackage.encryptedDEK,
+          keyId: encryptedPackage.keyId,
+          encryptionContext: encryptedPackage.encryptionContext,
+          encryptionVersion: encryptedPackage.version,
+          sessionId: encryptedPackage.sessionId,
+          timestamp: new Date(),
+          status: 'sent'
+        });
+
+        await message.save();
+        
+        // Return message without sensitive encryption data
+        const responseMessage = message.toObject ? message.toObject() : message;
+        delete responseMessage.encryptedDEK;
+        delete responseMessage.encryptionContext;
+        
+        savedMessages.push(responseMessage);
+      }
+    }
+
+    return savedMessages;
+  } catch (err) {
+    console.error('❌ Failed to send batch messages:', err);
+    throw err;
+  }
+}
+
+/**
  * Get encryption statistics for monitoring
  * @returns {Object} Encryption statistics
  */
 async function getEncryptionStats() {
   try {
-    return await Message.getEncryptionStats();
+    const messageStats = await Message.getEncryptionStats();
+    const optimizationStats = encryptionService.getStats();
+    
+    return {
+      ...messageStats,
+      optimization: optimizationStats
+    };
   } catch (error) {
     console.error('❌ Failed to get encryption stats:', error);
     throw error;
@@ -221,6 +328,7 @@ async function getEncryptionStats() {
 
 module.exports = {
   sendMessage,
+  sendBatchMessages,
   updateMessageStatus,
   updateUserOnlineStatus,
   getDecryptedMessages,

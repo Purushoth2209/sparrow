@@ -2,6 +2,15 @@ const { Server } = require('socket.io');
 const Message = require('./models/Message');
 const User = require('./models/User');
 const { sendMessage, decryptSingleMessage } = require('./controllers/messageController');
+const OptimizedKMSEnvelopeEncryption = require('./utils/optimizedKmsEncryption');
+
+// Initialize optimized encryption service for socket operations
+const socketEncryptionService = new OptimizedKMSEnvelopeEncryption({
+  dekRotationInterval: 30 * 60 * 1000, // 30 minutes
+  dekMaxAge: 60 * 60 * 1000, // 1 hour max age
+  batchTimeout: 50, // 50ms batch window
+  batchSize: 10 // Max 10 messages per batch
+});
 
 const userSockets = new Map(); // profileId -> socketId
 const userLastPing = new Map(); // Track last ping time for each user
@@ -122,6 +131,47 @@ const initializeSocket = async (server) => {
       console.error('❌ Error in periodic cleanup:', error);
     }
   }, 15000); // Check every 15 seconds (more frequent)
+
+  // Periodic DEK rotation for active sessions
+  setInterval(async () => {
+    try {
+      console.log(`🔄 Starting periodic DEK rotation for active sessions`);
+      
+      // Get all active user pairs for DEK rotation
+      const activeSessions = new Set();
+      for (const [profileId] of onlineUsers) {
+        const user = await User.findOne({ profileId: profileId });
+        if (user && user.friends.length > 0) {
+          // Create session IDs for all friend pairs
+          user.friends.forEach(friendId => {
+            const sessionId = `${profileId}-${friendId}`;
+            activeSessions.add(sessionId);
+          });
+        }
+      }
+      
+      // Rotate DEKs for active sessions
+      let rotatedCount = 0;
+      for (const sessionId of activeSessions) {
+        try {
+          await socketEncryptionService.rotateSessionDEK(sessionId);
+          rotatedCount++;
+        } catch (error) {
+          console.error(`❌ Failed to rotate DEK for session ${sessionId}:`, error);
+        }
+      }
+      
+      if (rotatedCount > 0) {
+        console.log(`✅ Rotated DEKs for ${rotatedCount} active sessions`);
+        
+        // Log encryption statistics
+        const stats = socketEncryptionService.getStats();
+        console.log(`📊 Encryption stats - Cache hit rate: ${stats.cacheHitRate.toFixed(2)}%, KMS calls: ${stats.kmsCalls}, Cache size: ${stats.cacheSize}`);
+      }
+    } catch (error) {
+      console.error('❌ Error in periodic DEK rotation:', error);
+    }
+  }, 30 * 60 * 1000); // Rotate every 30 minutes
 
   io.on('connection', (socket) => {
     // Handle heartbeat/ping

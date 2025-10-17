@@ -1,7 +1,7 @@
 const express = require('express');
 const Message = require('../models/Message');
 const User = require('../models/User');
-const { sendMessage, updateMessageStatus, getDecryptedMessages, getEncryptionStats } = require('../controllers/messageController');
+const { sendMessage, sendBatchMessages, updateMessageStatus, getDecryptedMessages, getEncryptionStats } = require('../controllers/messageController');
 const ensureAuthenticated = require('../middleware/ensureAuthenticated');
 
 const router = express.Router();
@@ -63,6 +63,69 @@ router.post('/send', ensureAuthenticated, async (req, res) => {
   } catch (err) {
     console.error('❌ Error sending encrypted message:', err);
     res.status(500).json({ error: 'Error sending message' });
+  }
+});
+
+// Send multiple messages in batch (optimized for performance)
+router.post('/send/batch', ensureAuthenticated, async (req, res) => {
+  try {
+    const { messages } = req.body; // Array of {receiverId, content} objects
+    const senderId = req.user.profileId;
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'Messages array is required and cannot be empty' });
+    }
+
+    if (messages.length > 10) {
+      return res.status(400).json({ error: 'Maximum 10 messages per batch' });
+    }
+
+    // Add senderId to each message
+    const messagesWithSender = messages.map(msg => ({
+      ...msg,
+      senderId: senderId
+    }));
+
+    // Use the batch message controller for optimized encryption
+    const savedMessages = await sendBatchMessages(messagesWithSender);
+
+    // Format timestamps
+    const formattedMessages = savedMessages.map(msg => ({
+      ...msg,
+      timestamp: new Date(msg.timestamp).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    }));
+
+    // Emit messages via socket for real-time delivery
+    const { io } = require('../socketio');
+    if (io) {
+      for (const message of formattedMessages) {
+        const receiverSocketId = require('../socketio').userSockets.get(message.receiverId);
+        if (receiverSocketId) {
+          // Update message status to delivered (receiver is online)
+          await Message.findByIdAndUpdate(message._id, { 
+            status: 'delivered', 
+            deliveredAt: new Date() 
+          });
+          message.status = 'delivered';
+          message.deliveredAt = new Date();
+          
+          // Socket.io will handle decryption when emitting to receiver
+          io.to(receiverSocketId).emit('receiveMessage', message);
+        }
+      }
+    }
+
+    res.status(200).json({ 
+      message: 'Batch messages sent successfully',
+      messages: formattedMessages,
+      count: formattedMessages.length
+    });
+  } catch (err) {
+    console.error('❌ Error sending batch messages:', err);
+    res.status(500).json({ error: 'Error sending batch messages' });
   }
 });
 

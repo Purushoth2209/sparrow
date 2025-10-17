@@ -81,6 +81,12 @@ const MessageSchema = new mongoose.Schema({
     }
   },
   
+  // Session ID for DEK caching optimization
+  sessionId: {
+    type: String,
+    // Optional field for optimized decryption
+  },
+  
   // Migration and rollback support
   originalContent: {
     type: String,
@@ -107,6 +113,7 @@ MessageSchema.index({ senderId: 1, receiverId: 1, timestamp: -1 });
 MessageSchema.index({ receiverId: 1, status: 1 });
 MessageSchema.index({ timestamp: -1 });
 MessageSchema.index({ isEncrypted: 1 });
+MessageSchema.index({ sessionId: 1 }); // Index for DEK caching optimization
 
 // Virtual for backward compatibility
 MessageSchema.virtual('displayContent').get(function() {
