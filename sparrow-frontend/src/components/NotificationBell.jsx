@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Button } from 'react-bootstrap';
 import { useNotifications } from '../contexts/NotificationContext';
 import { NOTIFICATION_TYPES } from '../contexts/NotificationContext';
 import './styles/NotificationBell.css';
@@ -128,18 +129,31 @@ const NotificationBell = () => {
   return (
     <div className="notification-bell-container" ref={dropdownRef}>
       {/* Notification Bell Button */}
-      <button
-        className="notification-bell-button"
+      <Button
+        className="notification-bell-button btn-modern-secondary d-flex align-items-center"
         onClick={() => setIsOpen(!isOpen)}
         title="Notifications"
       >
-        <span className="bell-icon">🔔</span>
+        <svg 
+          className="bell-icon me-1" 
+          width="16" 
+          height="16" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path 
+            d="M12 2C8.13 2 5 5.13 5 9c0 5.25-2 7-2 7h14s-2-1.75-2-7c0-3.87-3.13-7-7-7zM12 22c-1.1 0-2-.9-2-2h4c0 1.1-.9 2-2 2z" 
+            fill="currentColor"
+          />
+        </svg>
+        <span className="d-none-mobile">Notifications</span>
         {unreadCount > 0 && (
           <span className="notification-badge">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
-      </button>
+      </Button>
 
       {/* Notification Dropdown Panel */}
       {isOpen && (
