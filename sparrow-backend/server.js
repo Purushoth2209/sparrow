@@ -20,6 +20,8 @@ const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
   'https://www.sparrowchat.in', // Your custom domain frontend
   'https://sparrowchat.in', // Your custom domain without www
+  'https://sparrow-frontend-sigma.vercel.app', // Vercel deployment
+  'https://*.vercel.app', // All Vercel deployments
   'http://localhost:3000' // Local development
 ].filter(Boolean); // Remove any undefined values
 
@@ -28,11 +30,18 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
+    // Check exact matches first
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      console.log('❌ CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+      // Check for Vercel wildcard pattern
+      if (origin.endsWith('.vercel.app')) {
+        console.log('✅ CORS allowed Vercel origin:', origin);
+        callback(null, true);
+      } else {
+        console.log('❌ CORS blocked origin:', origin);
+        callback(new Error('Not allowed by CORS'));
+      }
     }
   },
   credentials: true,               // Allow cookies to be sent (required for sessions)

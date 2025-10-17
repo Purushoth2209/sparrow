@@ -9,10 +9,30 @@ let io;
 const initializeSocket = async (server) => {
   io = new Server(server, {
     cors: {
-      origin: [
-        process.env.FRONTEND_URL || 'http://localhost:3000',
-        'https://sparrow-frontend-sigma.vercel.app'
-      ],
+      origin: (origin, callback) => {
+        // Allow requests with no origin
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+          process.env.FRONTEND_URL || 'http://localhost:3000',
+          'https://sparrow-frontend-sigma.vercel.app',
+          'https://www.sparrowchat.in',
+          'https://sparrowchat.in',
+          'http://localhost:3000'
+        ];
+        
+        // Check exact matches first
+        if (allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else if (origin.endsWith('.vercel.app')) {
+          // Allow any Vercel deployment
+          console.log('✅ Socket.IO CORS allowed Vercel origin:', origin);
+          callback(null, true);
+        } else {
+          console.log('❌ Socket.IO CORS blocked origin:', origin);
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       methods: ["GET", "POST"],
       credentials: true
     },
