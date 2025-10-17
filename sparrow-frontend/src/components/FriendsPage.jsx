@@ -9,8 +9,6 @@ import Logo from '../Logo.png';
 import FriendRequests from './FriendRequests';
 import MessageStatus from './MessageStatus';
 import CustomAlert from './CustomAlert';
-// import NotificationTest from './NotificationTest'; // Removed for production
-import { useNotifications } from '../contexts/NotificationContext';
 import { useSocket } from '../contexts/SocketContext';
 import './styles/modern-theme.css';
 
@@ -51,15 +49,6 @@ const FriendsPage = () => {
   const [showChatView, setShowChatView] = useState(false); // For mobile view switching
   const navigate = useNavigate();
   
-  // Notification system
-  const { 
-    notifyMessageReceived, 
-    notifyFriendRequestReceived,
-    notifyFriendRequestAccepted,
-    notifyFriendRequestRejected,
-    notifyFriendUnfriended,
-    requestBrowserPermission 
-  } = useNotifications();
 
   // Socket context
   const { socket, reRegisterSocket } = useSocket();
@@ -98,10 +87,16 @@ const FriendsPage = () => {
               ? clientLastMoved 
               : existingFriend?.lastMovedAt;
             
+            // Use server data for online status and lastSeen (socket updates will override this)
+            const preservedIsOnline = newFriend.isOnline;
+            const preservedLastSeen = newFriend.lastSeen;
+            
             return {
               ...newFriend,
               unreadMessages: preservedUnreadCount,
-              lastMovedAt: preservedLastMoved
+              lastMovedAt: preservedLastMoved,
+              isOnline: preservedIsOnline,
+              lastSeen: preservedLastSeen
             };
           });
           
@@ -158,9 +153,6 @@ const FriendsPage = () => {
   useEffect(() => {
     fetchFriends();
     fetchFriendRequestsCount();
-    
-    // Request notification permission on component mount
-    requestBrowserPermission();
     
     // Re-register socket when component mounts (in case user just logged in)
     const profileId = localStorage.getItem('profileId');
@@ -242,9 +234,12 @@ const FriendsPage = () => {
 
   // Set up socket event listeners for UI updates - separate useEffect with minimal dependencies
   useEffect(() => {
-    if (!socket) return;
+    if (!socket) {
+      console.log('🔍 DEBUG: FriendsPage - Socket not available yet, skipping event listener setup');
+      return;
+    }
 
-    console.log('🔍 DEBUG: FriendsPage - Setting up socket event listeners');
+    console.log('🔍 DEBUG: FriendsPage - Socket available, setting up event listeners');
 
     // Clean up any existing listeners first to prevent duplicates
     socket.off('receiveMessage');
@@ -252,6 +247,7 @@ const FriendsPage = () => {
     socket.off('messagesRead');
     socket.off('messageStatusUpdate');
     socket.off('friendOnlineStatus');
+    socket.off('friendsStatusSnapshot');
     socket.off('friend_request_received');
 
     const handleReceiveMessage = (message) => {
@@ -270,11 +266,11 @@ const FriendsPage = () => {
         return;
       }
       
-      // Skip notification if this was delivered on connect (already seen)
+      // Skip processing if this was delivered on connect (already seen)
       if (message.isDeliveredOnConnect) {
-        console.log(`📭 RECEIVE: Message delivered on connect, skipping notification`);
+        console.log(`📭 RECEIVE: Message delivered on connect, skipping processing`);
         
-        // Still add to messages but don't trigger notifications
+        // Still add to messages
         setMessages(prev => ({
           ...prev,
           [message.senderId]: [...(prev[message.senderId] || []), message]
@@ -359,7 +355,7 @@ const FriendsPage = () => {
         }, 100);
       }
       
-      // Mark message as processed to prevent duplicate notifications
+      // Mark message as processed to prevent duplicates
       if (messageId) {
         setUiState(prev => ({
           ...prev,
@@ -450,14 +446,25 @@ const FriendsPage = () => {
     };
 
     const handleFriendOnlineStatus = (data) => {
-      console.log('🔍 DEBUG: FriendsPage - Friend online status:', data);
-      setFriends(prevFriends =>
-        prevFriends.map(f =>
-          f.profileId === data.profileId
-            ? { ...f, isOnline: data.isOnline, lastSeen: data.lastSeen }
-            : f
-        )
-      );
+      console.log('🔍 DEBUG: FriendsPage - Friend online status received:', data);
+      console.log('🔍 DEBUG: FriendsPage - Updating friend with profileId:', data.profileId, 'to isOnline:', data.isOnline);
+      
+      setFriends(prevFriends => {
+        const updatedFriends = prevFriends.map(f => {
+          if (f.profileId === data.profileId) {
+            console.log('🔍 DEBUG: FriendsPage - Found friend to update:', f.username, 'from isOnline:', f.isOnline, 'to isOnline:', data.isOnline);
+            return { 
+              ...f, 
+              isOnline: data.isOnline, 
+              lastSeen: data.lastSeen || f.lastSeen // Use provided lastSeen or keep existing
+            };
+          }
+          return f;
+        });
+        
+        console.log('🔍 DEBUG: FriendsPage - Updated friends list:', updatedFriends.map(f => ({ username: f.username, isOnline: f.isOnline })));
+        return updatedFriends;
+      });
     };
 
     const handleFriendRequestReceived = (data) => {
@@ -466,15 +473,40 @@ const FriendsPage = () => {
       setFriendRequestsCount(prev => prev + 1);
     };
 
+    const handleFriendsStatusSnapshot = (data) => {
+      console.log('🔍 DEBUG: FriendsPage - received friends status snapshot:', data);
+      
+      // Apply the snapshot to update all friends' online statuses immediately
+      setFriends(prevFriends => {
+        const updatedFriends = prevFriends.map(friend => {
+          const snapshotFriend = data.friends.find(f => f.profileId === friend.profileId);
+          if (snapshotFriend) {
+            console.log(`🔍 DEBUG: Updating friend ${friend.username} status from snapshot: ${snapshotFriend.isOnline ? 'online' : 'offline'}`);
+            return {
+              ...friend,
+              isOnline: snapshotFriend.isOnline,
+              lastSeen: snapshotFriend.lastSeen || friend.lastSeen
+            };
+          }
+          return friend;
+        });
+        
+        console.log('🔍 DEBUG: Applied snapshot to friends list:', updatedFriends.map(f => ({ username: f.username, isOnline: f.isOnline })));
+        return updatedFriends;
+      });
+    };
+
     // Register event listeners
     socket.on('receiveMessage', handleReceiveMessage);
     socket.on('messageSent', handleMessageSent);
     socket.on('messagesRead', handleMessagesRead);
     socket.on('messageStatusUpdate', handleMessageStatusUpdate);
     socket.on('friendOnlineStatus', handleFriendOnlineStatus);
+    socket.on('friendsStatusSnapshot', handleFriendsStatusSnapshot);
     socket.on('friend_request_received', handleFriendRequestReceived);
 
     console.log('🔍 DEBUG: FriendsPage - Socket event listeners registered');
+    console.log('🔍 DEBUG: FriendsPage - friendOnlineStatus listener specifically registered');
 
     // Cleanup function
     return () => {
@@ -484,6 +516,7 @@ const FriendsPage = () => {
       socket.off('messagesRead', handleMessagesRead);
       socket.off('messageStatusUpdate', handleMessageStatusUpdate);
       socket.off('friendOnlineStatus', handleFriendOnlineStatus);
+      socket.off('friendsStatusSnapshot', handleFriendsStatusSnapshot);
       socket.off('friend_request_received', handleFriendRequestReceived);
     };
   }, [socket]); // Only depend on socket - other dependencies will cause re-renders
@@ -928,7 +961,6 @@ const FriendsPage = () => {
                 />
               </Form.Group>
 
-              {/* Notification Test Panel - Removed after testing */}
 
             {error && (
               <Alert variant="danger" onClose={() => setError('')} dismissible className="flex-shrink-0">

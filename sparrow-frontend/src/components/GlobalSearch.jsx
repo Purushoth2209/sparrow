@@ -7,7 +7,6 @@ import FriendRequestIcon from './icons/FriendRequestIcon';
 import LogoutIcon from '../Logout.png';
 import Logo from '../Logo.png';
 import CustomAlert from './CustomAlert';
-import { useNotifications } from '../contexts/NotificationContext';
 import './styles/modern-theme.css';
 
 const GlobalSearch = () => {
@@ -22,8 +21,6 @@ const GlobalSearch = () => {
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
   const navigate = useNavigate();
   
-  // Notification system
-  const { requestBrowserPermission } = useNotifications();
 
   const searchUsers = useCallback(async () => {
     setLoading(true);
@@ -70,10 +67,7 @@ const GlobalSearch = () => {
 
   useEffect(() => {
     fetchFriendRequestsCount();
-    
-    // Request notification permission on component mount
-    requestBrowserPermission();
-  }, [requestBrowserPermission]);
+  }, []);
 
   const fetchFriendRequestsCount = async () => {
     try {

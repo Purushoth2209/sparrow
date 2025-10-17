@@ -3,9 +3,63 @@ const Message = require('./models/Message');
 const User = require('./models/User');
 const { sendMessage, decryptSingleMessage } = require('./controllers/messageController');
 
-const userSockets = new Map();
+const userSockets = new Map(); // profileId -> socketId
 const userLastPing = new Map(); // Track last ping time for each user
+const onlineUsers = new Map(); // profileId -> { isOnline: true, lastSeen: Date, socketId: string }
 let io;
+
+// Helper functions for managing online users
+const addOnlineUser = (profileId, socketId) => {
+  onlineUsers.set(profileId, {
+    isOnline: true,
+    lastSeen: new Date(),
+    socketId: socketId
+  });
+  console.log(`✅ Added user ${profileId} to online map`);
+};
+
+const removeOnlineUser = (profileId) => {
+  onlineUsers.delete(profileId);
+  console.log(`❌ Removed user ${profileId} from online map`);
+};
+
+const isUserOnline = (profileId) => {
+  return onlineUsers.has(profileId);
+};
+
+const getOnlineUsersSnapshot = (friendIds) => {
+  const snapshot = [];
+  friendIds.forEach(friendId => {
+    const onlineData = onlineUsers.get(friendId);
+    snapshot.push({
+      profileId: friendId,
+      isOnline: !!onlineData,
+      lastSeen: onlineData ? onlineData.lastSeen : null
+    });
+  });
+  return snapshot;
+};
+
+const broadcastToFriends = async (profileId, event, data) => {
+  try {
+    const user = await User.findOne({ profileId: profileId });
+    if (!user || !user.friends.length) return;
+
+    console.log(`📢 Broadcasting ${event} to ${user.friends.length} friends of ${profileId}`);
+    
+    user.friends.forEach(friendId => {
+      const friendSocketId = userSockets.get(friendId);
+      if (friendSocketId) {
+        io.to(friendSocketId).emit(event, data);
+        console.log(`📤 Sent ${event} to friend ${friendId}`);
+      } else {
+        console.log(`⚠️ Friend ${friendId} not connected, skipping ${event}`);
+      }
+    });
+  } catch (error) {
+    console.error(`❌ Error broadcasting ${event}:`, error);
+  }
+};
 
 const initializeSocket = async (server) => {
   io = new Server(server, {
@@ -31,42 +85,37 @@ const initializeSocket = async (server) => {
   // Periodic cleanup: Check for users marked as online but not in userSockets
   setInterval(async () => {
     try {
-      const onlineUsers = await User.find({ isOnline: true });
       const currentTime = Date.now();
       const PING_TIMEOUT = 60000; // 60 seconds timeout
       
-      console.log(`🔍 Periodic cleanup: Found ${onlineUsers.length} users marked as online, ${userSockets.size} active sockets`);
+      console.log(`🔍 Periodic cleanup: ${onlineUsers.size} users in online map, ${userSockets.size} active sockets`);
       
-      for (const user of onlineUsers) {
-        const lastPing = userLastPing.get(user.profileId);
-        const isSocketActive = userSockets.has(user.profileId);
+      // Check each user in the online map
+      for (const [profileId, onlineData] of onlineUsers) {
+        const lastPing = userLastPing.get(profileId);
+        const isSocketActive = userSockets.has(profileId);
         const isPingStale = lastPing && (currentTime - lastPing) > PING_TIMEOUT;
         
         if (!isSocketActive || isPingStale) {
-          console.log(`🔧 Cleaning up stale online status for user ${user.profileId} (socket: ${isSocketActive}, ping stale: ${isPingStale})`);
+          console.log(`🔧 Cleaning up stale online status for user ${profileId} (socket: ${isSocketActive}, ping stale: ${isPingStale})`);
           
+          // Update database
           await User.findOneAndUpdate(
-            { profileId: user.profileId },
+            { profileId: profileId },
             { isOnline: false, lastSeen: new Date() }
           );
           
-          // Remove from tracking
-          userSockets.delete(user.profileId);
-          userLastPing.delete(user.profileId);
+          // Remove from all tracking maps
+          userSockets.delete(profileId);
+          userLastPing.delete(profileId);
+          removeOnlineUser(profileId);
           
           // Notify friends about the cleanup
-          if (user.friends && user.friends.length > 0) {
-            user.friends.forEach(friendId => {
-              const friendSocketId = userSockets.get(friendId);
-              if (friendSocketId) {
-                io.to(friendSocketId).emit('friendOnlineStatus', {
-                  profileId: user.profileId,
-                  isOnline: false,
-                  lastSeen: new Date()
-                });
-              }
-            });
-          }
+          await broadcastToFriends(profileId, 'friendOnlineStatus', {
+            profileId: profileId,
+            isOnline: false,
+            lastSeen: new Date()
+          });
         }
       }
     } catch (error) {
@@ -88,21 +137,28 @@ const initializeSocket = async (server) => {
       console.log(`🔗 User ${profileId} connecting with socket ${socket.id}`);
       console.log(`🔍 DEBUG: Socket registration - Before registration userSockets map:`, Array.from(userSockets.entries()));
       
+      // Check if user was already online (idempotent handling)
+      const wasAlreadyOnline = isUserOnline(profileId);
+      
       // Remove any existing socket for this user (handle reconnection)
       for (let [existingProfileId, existingSocketId] of userSockets) {
         if (existingProfileId === profileId) {
           console.log(`🔄 Removing existing socket for user ${profileId}`);
           userSockets.delete(existingProfileId);
+          removeOnlineUser(existingProfileId);
           break;
         }
       }
       
+      // Add to tracking maps
       userSockets.set(profileId, socket.id);
       userLastPing.set(profileId, Date.now());
+      addOnlineUser(profileId, socket.id);
+      
       console.log(`✅ User ${profileId} registered with socket ${socket.id}`);
       console.log(`🔍 DEBUG: Socket registration - userSockets map after registration:`, Array.from(userSockets.entries()));
       
-      // Update user online status and last seen
+      // Update user online status and last seen in database
       const updateResult = await User.findOneAndUpdate(
         { profileId: profileId },
         { isOnline: true, lastSeen: new Date() },
@@ -111,23 +167,40 @@ const initializeSocket = async (server) => {
       
       console.log(`📱 User ${profileId} online status updated:`, updateResult ? 'Success' : 'Failed');
 
-      // Notify friends about online status
+      // Get user's friends list
       const user = await User.findOne({ profileId: profileId });
-      if (user && user.friends.length > 0) {
-        console.log(`📢 Notifying ${user.friends.length} friends about ${profileId} coming online`);
-        user.friends.forEach(friendId => {
-          const friendSocketId = userSockets.get(friendId);
-          if (friendSocketId) {
-            io.to(friendSocketId).emit('friendOnlineStatus', {
-              profileId: profileId,
-              isOnline: true,
-              lastSeen: new Date()
-            });
-            console.log(`📤 Notified friend ${friendId} about ${profileId} online`);
-          } else {
-            console.log(`⚠️ Friend ${friendId} not connected, skipping notification`);
-          }
+      if (!user) {
+        console.error(`❌ User ${profileId} not found in database`);
+        return;
+      }
+
+      // Send immediate snapshot of friends' online statuses to the connecting user
+      if (user.friends.length > 0) {
+        console.log(`📥 Sending immediate snapshot of ${user.friends.length} friends' statuses to ${profileId}`);
+        
+        // Use fast in-memory lookup instead of database query
+        const friendsSnapshot = getOnlineUsersSnapshot(user.friends);
+        
+        // Send snapshot as a single event for efficiency
+        socket.emit('friendsStatusSnapshot', {
+          friends: friendsSnapshot,
+          timestamp: new Date()
         });
+        
+        console.log(`📤 Sent snapshot to ${profileId}:`, friendsSnapshot.map(f => `${f.profileId}:${f.isOnline ? 'online' : 'offline'}`).join(', '));
+      }
+
+      // Broadcast to friends that this user came online (only if they weren't already online)
+      if (!wasAlreadyOnline && user.friends.length > 0) {
+        console.log(`📢 Broadcasting ${profileId} online status to ${user.friends.length} friends`);
+        
+        await broadcastToFriends(profileId, 'friendOnlineStatus', {
+          profileId: profileId,
+          isOnline: true,
+          lastSeen: new Date()
+        });
+      } else if (wasAlreadyOnline) {
+        console.log(`ℹ️ User ${profileId} was already online, skipping friend notification`);
       }
 
       // Only fetch messages that haven't been delivered yet
@@ -150,7 +223,7 @@ const initializeSocket = async (server) => {
             // Decrypt the message for display
             const decryptedMessage = await decryptSingleMessage(msg);
             
-            // Get sender's username for notifications
+            // Get sender's username for display
             const sender = await User.findOne({ profileId: msg.senderId });
             
             const messageWithTime = {
@@ -234,7 +307,7 @@ const initializeSocket = async (server) => {
             decryptedMessage.status = 'delivered';
             decryptedMessage.deliveredAt = new Date();
             
-            // Get sender's username for notifications
+            // Get sender's username for display
             const sender = await User.findOne({ profileId: senderId });
             decryptedMessage.senderUsername = sender ? sender.username : 'Unknown User';
             
@@ -286,33 +359,25 @@ const initializeSocket = async (server) => {
       try {
         console.log(`🚪 User ${profileId} logging out`);
         
-        // Update user offline status and last seen
+        // Update user offline status and last seen in database
         await User.findOneAndUpdate(
           { profileId: profileId },
           { isOnline: false, lastSeen: new Date() }
         );
         
-        // Remove from userSockets and lastPing
+        // Remove from all tracking maps
         userSockets.delete(profileId);
         userLastPing.delete(profileId);
-        console.log(`👤 User ${profileId} removed from active sockets`);
+        removeOnlineUser(profileId);
+        
+        console.log(`👤 User ${profileId} removed from all tracking maps`);
 
-        // Notify friends about offline status
-        const user = await User.findOne({ profileId: profileId });
-        if (user && user.friends.length > 0) {
-          console.log(`📢 Notifying ${user.friends.length} friends about ${profileId} going offline (logout)`);
-          user.friends.forEach(friendId => {
-            const friendSocketId = userSockets.get(friendId);
-            if (friendSocketId) {
-              io.to(friendSocketId).emit('friendOnlineStatus', {
-                profileId: profileId,
-                isOnline: false,
-                lastSeen: new Date()
-              });
-              console.log(`📤 Notified friend ${friendId} about ${profileId} offline (logout)`);
-            }
-          });
-        }
+        // Immediately broadcast offline status to friends
+        await broadcastToFriends(profileId, 'friendOnlineStatus', {
+          profileId: profileId,
+          isOnline: false,
+          lastSeen: new Date()
+        });
         
         console.log(`✅ Logout completed for user ${profileId}`);
       } catch (error) {
@@ -410,10 +475,13 @@ const initializeSocket = async (server) => {
       
       if (disconnectedUserId) {
         console.log(`👤 User ${disconnectedUserId} disconnected`);
+        
+        // Remove from all tracking maps
         userSockets.delete(disconnectedUserId);
         userLastPing.delete(disconnectedUserId);
+        removeOnlineUser(disconnectedUserId);
         
-        // Update user offline status and last seen
+        // Update user offline status and last seen in database
         const updateResult = await User.findOneAndUpdate(
           { profileId: disconnectedUserId },
           { isOnline: false, lastSeen: new Date() },
@@ -422,24 +490,12 @@ const initializeSocket = async (server) => {
         
         console.log(`📱 User ${disconnectedUserId} offline status updated:`, updateResult ? 'Success' : 'Failed');
 
-        // Notify friends about offline status
-        const user = await User.findOne({ profileId: disconnectedUserId });
-        if (user && user.friends.length > 0) {
-          console.log(`📢 Notifying ${user.friends.length} friends about ${disconnectedUserId} going offline`);
-          user.friends.forEach(friendId => {
-            const friendSocketId = userSockets.get(friendId);
-            if (friendSocketId) {
-              io.to(friendSocketId).emit('friendOnlineStatus', {
-                profileId: disconnectedUserId,
-                isOnline: false,
-                lastSeen: new Date()
-              });
-              console.log(`📤 Notified friend ${friendId} about ${disconnectedUserId} offline`);
-            } else {
-              console.log(`⚠️ Friend ${friendId} not connected, skipping notification`);
-            }
-          });
-        }
+        // Immediately broadcast offline status to friends
+        await broadcastToFriends(disconnectedUserId, 'friendOnlineStatus', {
+          profileId: disconnectedUserId,
+          isOnline: false,
+          lastSeen: new Date()
+        });
       } else {
         console.log(`⚠️ No user found for disconnected socket ${socket.id}`);
       }
