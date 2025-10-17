@@ -102,16 +102,20 @@ const Login = () => {
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             className="login-input"
+            style={{ fontSize: '16px' }} // Prevents zoom on iOS
+            autoComplete="username"
           />
           <PasswordField
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             inputClassName="login-input"
             containerClassName="password-field"
+            inputStyle={{ fontSize: '16px' }} // Prevents zoom on iOS
           />
           <button 
             type="submit" 
             className="login-btn"
+            style={{ minHeight: '48px' }}
           >
             Login
           </button>

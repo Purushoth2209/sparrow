@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNotifications, NOTIFICATION_TYPES } from '../contexts/NotificationContext';
-import InAppNotification from './InAppNotification';
 import './styles/NotificationManager.css';
 
 const NotificationManager = () => {
@@ -43,6 +42,14 @@ const NotificationManager = () => {
     if (!notification.read) {
       markAsRead(notification.id);
     }
+    // Close the panel after clicking
+    setIsHistoryOpen(false);
+  };
+
+  const handleClearAll = () => {
+    clearAll();
+    setIsHistoryOpen(false);
+    console.log('🗑️ All notifications cleared');
   };
 
   const getNotificationIcon = (type) => {
@@ -153,17 +160,21 @@ const NotificationManager = () => {
                   ✓
                 </button>
               )}
-              {notifications.length > 0 && (
-                <button
-                  className="action-button"
-                  onClick={clearAll}
-                  title="Clear all"
-                >
-                  🗑️
-                </button>
-              )}
             </div>
           </div>
+
+          {/* Clear All Button - Prominently displayed */}
+          {notifications.length > 0 && (
+            <div className="notification-clear-all-section">
+              <button
+                className="clear-all-button"
+                onClick={handleClearAll}
+                title="Clear all notifications"
+              >
+                🗑️ Clear All
+              </button>
+            </div>
+          )}
 
           <div className="notification-list">
             {notifications.length === 0 ? (
@@ -171,31 +182,52 @@ const NotificationManager = () => {
                 <p>No notifications yet</p>
               </div>
             ) : (
-              notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`notification-item ${!notification.read ? 'unread' : ''}`}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <div className="notification-item-icon">
-                    {getNotificationIcon(notification.type)}
+              notifications.map((notification) => {
+                // Extract username and description for better layout
+                const getNotificationContent = () => {
+                  if (notification.type === NOTIFICATION_TYPES.MESSAGE_RECEIVED && notification.message.includes(':')) {
+                    const parts = notification.message.split(':');
+                    const username = parts[0].trim();
+                    const description = parts.slice(1).join(':').trim();
+                    return { username, description };
+                  }
+                  return { 
+                    username: notification.username || 'Someone', 
+                    description: notification.message 
+                  };
+                };
+
+                const { username, description } = getNotificationContent();
+
+                return (
+                  <div
+                    key={notification.id}
+                    className={`notification-item ${!notification.read ? 'unread' : ''}`}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <div className="notification-item-icon">
+                      {getNotificationIcon(notification.type)}
+                    </div>
+                    <div className="notification-item-content">
+                      <div className="notification-item-title">
+                        {notification.title}
+                      </div>
+                      <div className="notification-item-username">
+                        {username}
+                      </div>
+                      <div className="notification-item-description">
+                        {description}
+                      </div>
+                      <div className="notification-item-time">
+                        {formatTime(notification.timestamp)}
+                      </div>
+                    </div>
+                    {!notification.read && (
+                      <div className="notification-item-unread-dot" />
+                    )}
                   </div>
-                  <div className="notification-item-content">
-                    <div className="notification-item-title">
-                      {notification.title}
-                    </div>
-                    <div className="notification-item-message">
-                      {notification.message}
-                    </div>
-                    <div className="notification-item-time">
-                      {formatTime(notification.timestamp)}
-                    </div>
-                  </div>
-                  {!notification.read && (
-                    <div className="notification-item-unread-dot" />
-                  )}
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -261,21 +293,6 @@ const NotificationManager = () => {
         </div>
       )}
 
-      {/* Toast Notifications Container */}
-      <div className="toast-notifications-container">
-        {notifications
-          .filter(n => !n.read)
-          .slice(0, 3) // Show max 3 toast notifications
-          .map((notification) => (
-            <InAppNotification
-              key={notification.id}
-              notification={notification}
-              onRemove={removeNotification}
-              onMarkAsRead={markAsRead}
-            />
-          ))
-        }
-      </div>
     </div>
   );
 };

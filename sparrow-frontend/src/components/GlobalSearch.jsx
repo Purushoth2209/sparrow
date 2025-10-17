@@ -314,6 +314,8 @@ const GlobalSearch = () => {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="simple-search-input"
                       size="lg"
+                      style={{ fontSize: '16px' }} // Prevents zoom on iOS
+                      autoComplete="off"
                     />
                   </div>
                   <Form.Text style={{ color: 'var(--text-secondary)' }}>

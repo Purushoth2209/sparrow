@@ -5,7 +5,6 @@ import Signup from './components/Signup';
 import FriendsPage from './components/FriendsPage';
 import GlobalSearch from './components/GlobalSearch';
 import UsernameSetup from './components/UsernameSetup';
-import NotificationTester from './components/NotificationTester';
 import { SocketProvider, useSocket } from './contexts/SocketContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import './components/styles/modern-theme.css';
@@ -324,9 +323,6 @@ const App = () => {
               />  {/* Protected route for global search */}
               <Route path="/" element={<Navigate to="/login" replace />} />
             </Routes>
-            
-            {/* Notification Tester - for development/testing only */}
-            <PrivateRoute element={<NotificationTester />} />
           </div>
         </Router>
       </NotificationProvider>

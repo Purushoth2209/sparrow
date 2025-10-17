@@ -219,9 +219,14 @@ const FriendsPage = () => {
   // Handle responsive behavior on window resize
   useEffect(() => {
     const handleResize = () => {
-      // On desktop/tablet, always show both views
+      // On desktop/tablet (768px and up), always show both views side by side
       if (window.innerWidth >= 768) {
         setShowChatView(false);
+      } else {
+        // On mobile (below 768px), show friends list by default if no chat is active
+        if (!currentFriend) {
+          setShowChatView(false);
+        }
       }
     };
 
@@ -231,7 +236,7 @@ const FriendsPage = () => {
     handleResize();
 
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [currentFriend]);
 
   // Set up socket event listeners for UI updates - separate useEffect with minimal dependencies
   useEffect(() => {
@@ -659,8 +664,11 @@ const FriendsPage = () => {
   const handleSelectFriend = (friend) => {
     setCurrentFriend(friend);
     
-    // Switch to chat view on mobile
-    setShowChatView(true);
+    // On mobile (below 768px), switch to chat view
+    // On desktop/tablet, keep both views visible
+    if (window.innerWidth < 768) {
+      setShowChatView(true);
+    }
     
     // Reset unread messages count for the selected friend
     setFriends(prevFriends =>
@@ -890,7 +898,11 @@ const FriendsPage = () => {
   };
 
   const handleBackToFriends = () => {
-    setShowChatView(false);
+    // On mobile, go back to friends list
+    // On desktop/tablet, just close the chat but keep friends list visible
+    if (window.innerWidth < 768) {
+      setShowChatView(false);
+    }
     setCurrentFriend(null);
   };
 
@@ -955,7 +967,7 @@ const FriendsPage = () => {
         </Row>
 
         <Row className="content-row" style={{ height: 'calc(100vh - 80px)' }}>
-          {/* Friends List */}
+          {/* Friends List - Mobile: Full width, Desktop: 4 columns */}
           <Col xs={12} md={4} className={`friends-list-container ${showChatView ? 'd-none d-md-block' : ''}`}>
             <div className="p-3 h-100 d-flex flex-column">
               <Form.Group className="mb-3 flex-shrink-0">
@@ -965,6 +977,7 @@ const FriendsPage = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="search-input"
+                  style={{ fontSize: '16px' }} // Prevents zoom on iOS
                 />
               </Form.Group>
 
@@ -1065,7 +1078,7 @@ const FriendsPage = () => {
           </div>
         </Col>
 
-          {/* Chat Area */}
+          {/* Chat Area - Mobile: Hidden when friends list is shown, Desktop: 8 columns */}
           <Col xs={12} md={8} className={`chat-container ${!showChatView ? 'd-none d-md-block' : ''}`}>
             {currentFriend ? (
               <ChatArea 
@@ -1278,16 +1291,21 @@ const ChatArea = ({ friend, messages, onSendMessage, onCloseChat, onRemoveFriend
 
         {/* Message Input */}
         <div className="message-input-container">
-          <div className="d-flex">
+          <div className="d-flex gap-2">
             <Form.Control
               type="text"
               placeholder="Type your message..."
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyPress={handleKeyPress}
-              className="message-input me-2"
+              className="message-input flex-grow-1"
+              style={{ fontSize: '16px' }} // Prevents zoom on iOS
             />
-            <Button className="btn-modern-primary" onClick={handleSend}>
+            <Button 
+              className="btn-modern-primary flex-shrink-0" 
+              onClick={handleSend}
+              style={{ minWidth: '60px' }}
+            >
               Send
             </Button>
           </div>

@@ -311,7 +311,7 @@ export const NotificationProvider = ({ children }) => {
     localStorage.setItem('browserNotificationsEnabled', state.browserNotificationsEnabled.toString());
   }, [state.browserNotificationsEnabled]);
 
-  // Add notification function
+  // Add notification function - Enhanced for dual display
   const addNotification = useCallback((notificationData) => {
     const notification = {
       id: Date.now() + Math.random(),
@@ -320,12 +320,31 @@ export const NotificationProvider = ({ children }) => {
       ...notificationData
     };
     
+    console.log('🔔 Adding notification:', {
+      type: notification.type,
+      title: notification.title,
+      username: notification.username,
+      message: notification.message
+    });
+    
+    // Always add to persistent panel
     dispatch({ type: 'ADD_NOTIFICATION', payload: notification });
     
     // Show browser notification if enabled
     if (state.browserNotificationsEnabled && state.browserPermission === 'granted') {
       createBrowserNotification(notification);
     }
+    
+    console.log('🔔 Dual notification added successfully:', {
+      id: notification.id,
+      type: notification.type,
+      title: notification.title,
+      username: notification.username,
+      message: notification.message,
+      timestamp: notification.timestamp,
+      willShowAsToast: true,
+      willShowInPanel: true
+    });
     
     return notification;
   }, [state.browserNotificationsEnabled, state.browserPermission]);
@@ -552,7 +571,15 @@ export const NotificationProvider = ({ children }) => {
   }, []);
 
   const clearAll = useCallback(() => {
+    console.log('🗑️ Clearing all notifications');
     dispatch({ type: 'CLEAR_ALL' });
+    
+    // Also clear any pending browser notifications
+    if ('Notification' in window) {
+      // Close any open browser notifications
+      // Note: Browser notifications can't be programmatically closed in all browsers
+      // but this ensures we clear the local state
+    }
   }, []);
 
   const value = {

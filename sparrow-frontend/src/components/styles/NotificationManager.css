@@ -1,27 +1,30 @@
 /* Notification Manager Styles */
 .notification-manager {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 1000;
-  font-family: 'Roboto', sans-serif;
+  position: fixed !important;
+  top: 20px !important;
+  right: 20px !important;
+  z-index: 1000 !important;
+  font-family: 'Roboto', sans-serif !important;
+  pointer-events: auto !important;
 }
 
 /* Notification Bell */
 .notification-bell-container {
-  position: relative;
-  display: inline-block;
+  position: relative !important;
+  display: inline-block !important;
+  pointer-events: auto !important;
 }
 
 .notification-bell {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  transition: all 0.3s ease;
-  position: relative;
+  background: none !important;
+  border: none !important;
+  font-size: 1.5rem !important;
+  cursor: pointer !important;
+  padding: 8px !important;
+  border-radius: 50% !important;
+  transition: all 0.3s ease !important;
+  position: relative !important;
+  pointer-events: auto !important;
 }
 
 .notification-bell:hover {
@@ -60,18 +63,19 @@
 
 /* Notification History Dropdown */
 .notification-history {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  width: 350px;
-  max-height: 500px;
-  background: var(--bg-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xl);
-  border: 1px solid var(--border-light);
-  overflow: hidden;
-  z-index: 1001;
-  animation: slideDown var(--transition-normal);
+  position: absolute !important;
+  top: 100% !important;
+  right: 0 !important;
+  width: 350px !important;
+  max-height: 500px !important;
+  background: var(--bg-primary) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--shadow-xl) !important;
+  border: 1px solid var(--border-light) !important;
+  overflow: hidden !important;
+  z-index: 1001 !important;
+  animation: slideDown var(--transition-normal) !important;
+  pointer-events: auto !important;
 }
 
 @keyframes slideDown {
@@ -86,12 +90,13 @@
 }
 
 .notification-history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--spacing-md) var(--spacing-lg);
-  border-bottom: 1px solid var(--border-light);
-  background: var(--bg-secondary);
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: var(--spacing-md) var(--spacing-lg) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  background: var(--bg-secondary) !important;
+  pointer-events: auto !important;
 }
 
 .notification-history-header h3 {
@@ -102,19 +107,21 @@
 }
 
 .notification-actions {
-  display: flex;
-  gap: 8px;
+  display: flex !important;
+  gap: 8px !important;
+  pointer-events: auto !important;
 }
 
 .action-button {
-  background: none;
-  border: none;
-  padding: var(--spacing-sm);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 1rem;
-  transition: background-color var(--transition-fast);
-  color: var(--text-secondary);
+  background: none !important;
+  border: none !important;
+  padding: var(--spacing-sm) !important;
+  border-radius: var(--radius-sm) !important;
+  cursor: pointer !important;
+  font-size: 1rem !important;
+  transition: background-color var(--transition-fast) !important;
+  color: var(--text-secondary) !important;
+  pointer-events: auto !important;
 }
 
 .action-button:hover {
@@ -124,8 +131,9 @@
 
 /* Notification List */
 .notification-list {
-  max-height: 400px;
-  overflow-y: auto;
+  max-height: 400px !important;
+  overflow-y: auto !important;
+  pointer-events: auto !important;
 }
 
 .no-notifications {
@@ -135,13 +143,14 @@
 }
 
 .notification-item {
-  display: flex;
-  align-items: flex-start;
-  padding: var(--spacing-sm) var(--spacing-lg);
-  border-bottom: 1px solid var(--border-light);
-  cursor: pointer;
-  transition: background-color var(--transition-fast);
-  position: relative;
+  display: flex !important;
+  align-items: flex-start !important;
+  padding: var(--spacing-sm) var(--spacing-lg) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  cursor: pointer !important;
+  transition: background-color var(--transition-fast) !important;
+  position: relative !important;
+  pointer-events: auto !important;
 }
 
 .notification-item:hover {
@@ -163,12 +172,15 @@
 .notification-item-content {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .notification-item-title {
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   font-size: 0.9rem;
   white-space: nowrap;
   overflow: hidden;
@@ -176,7 +188,18 @@
   max-width: 100%;
 }
 
-.notification-item-message {
+.notification-item-username {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.notification-item-description {
   color: var(--text-secondary);
   font-size: 0.85rem;
   margin-bottom: 4px;
@@ -184,11 +207,19 @@
   word-wrap: break-word;
   overflow-wrap: break-word;
   hyphens: auto;
+  max-height: 2.6em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .notification-item-time {
   color: var(--text-muted);
   font-size: 0.75rem;
+  align-self: flex-end;
+  margin-top: auto;
 }
 
 .notification-item-unread-dot {
@@ -201,119 +232,46 @@
   border-radius: 50%;
 }
 
-/* Toast Notifications */
-.toast-notifications-container {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  pointer-events: none;
+
+/* Clear All Button Section */
+.notification-clear-all-section {
+  padding: var(--spacing-sm) var(--spacing-lg) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+  background: var(--bg-tertiary) !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
 }
 
-/* In-App Notification Styles */
-.in-app-notification {
-  width: 320px;
-  min-height: 70px;
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  margin-bottom: var(--spacing-sm);
-  opacity: 0;
-  transform: translateX(100%);
-  transition: all var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: auto;
-  position: relative;
-  overflow: hidden;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  font-family: 'Roboto', sans-serif;
+.clear-all-button {
+  background: var(--error-color) !important;
+  color: white !important;
+  border: none !important;
+  padding: var(--spacing-sm) var(--spacing-md) !important;
+  border-radius: var(--radius-md) !important;
+  cursor: pointer !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+  transition: all var(--transition-fast) !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  width: 100% !important;
+  justify-content: center !important;
 }
 
-.in-app-notification.visible {
-  opacity: 1;
-  transform: translateX(0);
+.clear-all-button:hover {
+  background: #c82333 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: var(--shadow-md) !important;
 }
 
-.in-app-notification.removing {
-  opacity: 0;
-  transform: translateX(100%);
+.clear-all-button:active {
+  transform: translateY(0) !important;
 }
 
-.in-app-notification.read {
-  opacity: 0.8;
-}
 
-.notification-content {
-  display: flex;
-  align-items: flex-start;
-  padding: var(--spacing-md);
-  position: relative;
-}
 
-.notification-icon {
-  font-size: 1.5rem;
-  margin-right: 12px;
-  margin-top: 2px;
-}
-
-.notification-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.notification-title {
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin-bottom: 4px;
-  line-height: 1.3;
-}
-
-.notification-message {
-  font-size: 0.85rem;
-  line-height: 1.4;
-  margin-bottom: 6px;
-  opacity: 0.95;
-}
-
-.notification-time {
-  font-size: 0.75rem;
-  opacity: 0.8;
-}
-
-.notification-close {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1.2rem;
-  font-weight: bold;
-  opacity: 0.7;
-  transition: all 0.2s ease;
-}
-
-.notification-close:hover {
-  opacity: 1;
-  background-color: rgba(255, 255, 255, 0.2);
-}
-
-.unread-indicator {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  width: 8px;
-  height: 8px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
-}
 
 /* Settings Modal */
 .notification-settings-overlay {
@@ -521,23 +479,168 @@
   }
 }
 
+/* Additional fixes for notification visibility */
+.notification-manager * {
+  box-sizing: border-box !important;
+}
+
+/* Ensure notification manager is always accessible */
+.notification-manager {
+  visibility: visible !important;
+  display: block !important;
+}
+
 /* Mobile responsiveness */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
+  .notification-manager {
+    top: 10px !important;
+    right: 10px !important;
+  }
+  
+  .notification-bell {
+    font-size: 1.3rem !important;
+    padding: 6px !important;
+  }
+  
+  .notification-badge {
+    min-width: 18px;
+    height: 18px;
+    font-size: 0.7rem;
+  }
+  
   .notification-history {
-    width: 90vw;
-    right: -10vw;
+    width: 90vw !important;
+    max-width: 350px !important;
+    right: -10vw !important;
+    max-height: 70vh !important;
   }
   
-  .toast-notifications-container {
-    right: 10px;
-    left: 10px;
+  .notification-history-header {
+    padding: var(--spacing-sm) var(--spacing-md) !important;
   }
   
-  .in-app-notification {
-    width: 100%;
+  .notification-history-header h3 {
+    font-size: 1rem;
+  }
+  
+  .notification-item {
+    padding: var(--spacing-sm) var(--spacing-md) !important;
+  }
+  
+  .notification-item-icon {
+    font-size: 1.1rem;
+    margin-right: 10px;
+  }
+  
+  .notification-item-title {
+    font-size: 0.85rem;
+  }
+  
+  .notification-item-username {
+    font-size: 0.85rem;
+  }
+  
+  .notification-item-description {
+    font-size: 0.8rem;
+    line-height: 1.3;
+  }
+  
+  .notification-item-time {
+    font-size: 0.7rem;
   }
   
   .notification-settings {
-    width: 95%;
+    width: 95% !important;
+    max-height: 80vh !important;
+  }
+  
+  .clear-all-button {
+    font-size: 0.85rem !important;
+    padding: var(--spacing-xs) var(--spacing-sm) !important;
+  }
+  
+  .action-button {
+    padding: var(--spacing-xs) !important;
+    font-size: 0.9rem !important;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  .notification-manager {
+    top: 8px !important;
+    right: 8px !important;
+  }
+  
+  .notification-bell {
+    font-size: 1.2rem !important;
+    padding: 5px !important;
+  }
+  
+  .notification-badge {
+    min-width: 16px;
+    height: 16px;
+    font-size: 0.65rem;
+  }
+  
+  .notification-history {
+    width: 95vw !important;
+    right: -15vw !important;
+    max-height: 75vh !important;
+  }
+  
+  .notification-history-header {
+    padding: var(--spacing-xs) var(--spacing-sm) !important;
+  }
+  
+  .notification-history-header h3 {
+    font-size: 0.9rem;
+  }
+  
+  .notification-item {
+    padding: var(--spacing-xs) var(--spacing-sm) !important;
+  }
+  
+  .notification-item-icon {
+    font-size: 1rem;
+    margin-right: 8px;
+  }
+  
+  .notification-item-title {
+    font-size: 0.8rem;
+  }
+  
+  .notification-item-username {
+    font-size: 0.8rem;
+  }
+  
+  .notification-item-description {
+    font-size: 0.75rem;
+    line-height: 1.2;
+  }
+  
+  .notification-item-time {
+    font-size: 0.65rem;
+  }
+  
+  .clear-all-button {
+    font-size: 0.8rem !important;
+    padding: var(--spacing-xs) !important;
+  }
+  
+  .action-button {
+    padding: 2px !important;
+    font-size: 0.8rem !important;
+  }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 896px) and (orientation: landscape) {
+  .notification-history {
+    max-height: 60vh !important;
+  }
+  
+  .notification-settings {
+    max-height: 70vh !important;
   }
 }
