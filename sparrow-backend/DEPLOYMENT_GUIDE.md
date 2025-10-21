@@ -59,22 +59,14 @@ JWT_SECRET=your_jwt_secret_key
 - Get your connection string
 - Add your server IP to the whitelist
 
-#### 3. **Session Store (Optional but Recommended)**
-For better scalability, consider using Redis for session storage:
+#### 3. **Session Store (✅ Already Configured)**
+Your app now uses MongoDB for session storage with `connect-mongo`, providing:
+- ✅ Session persistence across server restarts
+- ✅ Shared session store for multiple server instances
+- ✅ Automatic session cleanup with TTL
+- ✅ No additional infrastructure required (uses your existing MongoDB)
 
-```bash
-npm install connect-redis redis
-```
-
-Then update `server.js`:
-```javascript
-const RedisStore = require('connect-redis')(session);
-const redis = require('redis');
-const redisClient = redis.createClient(process.env.REDIS_URL);
-
-// Replace MemoryStore with:
-store: new RedisStore({ client: redisClient })
-```
+The session store is automatically configured in `server.js` and will create a `sessions` collection in your MongoDB database.
 
 #### 4. **Security Headers (Optional)**
 Consider adding security headers:

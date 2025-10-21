@@ -216,10 +216,21 @@ exports.registerUser = async (req, res) => {
 
         console.log('✅ Registration successful, session created for:', user.username);
 
-        res.status(201).json({ 
-            success: true,
-            user: req.session.user,
-            message: 'Registration successful' 
+        // Explicitly tell express-session the session has been modified
+        req.session.touch();
+        req.session.save((err) => {
+            if (err) {
+                console.error('❌ Session save error:', err);
+                return res.status(500).json({ message: 'Session save failed' });
+            }
+
+            console.log('✅ Session persisted successfully for:', user.username);
+            
+            res.status(201).json({ 
+                success: true,
+                user: req.session.user,
+                message: 'Registration successful' 
+            });
         });
     } catch (error) {
         console.error('❌ Registration error:', error);
@@ -355,13 +366,63 @@ exports.loginUser = async (req, res) => {
         }
 
         console.log('✅ Login successful, session created for:', user.username);
+        console.log('🔍 Session data after user assignment:', {
+          sessionID: req.sessionID,
+          hasUser: !!req.session.user,
+          userProfileId: req.session.user?.profileId,
+          userUsername: req.session.user?.username,
+          sessionKeys: Object.keys(req.session)
+        });
 
-        res.status(200).json({ 
+        // Force session modification and save with explicit marking
+        req.session.touch();
+        console.log('🔍 About to save session with ID:', req.sessionID);
+        console.log('🔍 Session data before save:', {
+          sessionID: req.sessionID,
+          hasUser: !!req.session.user,
+          userProfileId: req.session.user?.profileId,
+          userUsername: req.session.user?.username,
+          sessionKeys: Object.keys(req.session)
+        });
+        
+        // Force session to be marked as modified
+        req.session.user = req.session.user; // This should trigger modification
+        
+        req.session.save((err) => {
+          if (err) {
+            console.error('❌ Session save error:', err);
+            return res.status(500).json({ message: 'Session save failed' });
+          }
+        
+          console.log('✅ Session persisted successfully for:', user.username);
+          console.log('🔍 Session data after save:', {
+            sessionID: req.sessionID,
+            hasUser: !!req.session.user,
+            userProfileId: req.session.user?.profileId,
+            userUsername: req.session.user?.username,
+            sessionKeys: Object.keys(req.session)
+          });
+          
+          // Explicitly set the session cookie to ensure it's updated
+          res.cookie('sparrow.sid', req.sessionID, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            // Remove domain restriction to see if that's causing the issue
+            // domain: process.env.COOKIE_DOMAIN || '.sparrowchat.in',
+            maxAge: 7 * 24 * 60 * 60 * 1000,
+          });
+          
+          console.log('🍪 Setting cookie sparrow.sid with value:', req.sessionID);
+        
+          res.status(200).json({
             success: true,
             user: req.session.user,
             message: 'Login successful',
-            passwordWarning
+          });
         });
+        
+         // Small delay to ensure session modification is processed
     } catch (error) {
         console.error('❌ Login error:', error);
         res.status(500).json({ message: 'Server error' });
@@ -622,16 +683,27 @@ exports.googleCallback = async (req, res) => {
 
     console.log('✅ Google authentication successful, session created');
 
-    // Redirect based on whether user needs username setup
-    if (user.needsUsernameSetup) {
-      // New user - redirect to username setup page
-      console.log('🔄 Redirecting new user to username setup page');
-      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/setup-username`);
-    } else {
-      // Existing user - redirect to chat page
-      console.log('🔄 Redirecting existing user to friends page');
-      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/friends`);
-    }
+    // Explicitly tell express-session the session has been modified
+    req.session.touch();
+    req.session.save((err) => {
+      if (err) {
+        console.error('❌ Session save error:', err);
+        return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=session_failed`);
+      }
+
+      console.log('✅ Session persisted successfully for:', user.username);
+
+      // Redirect based on whether user needs username setup
+      if (user.needsUsernameSetup) {
+        // New user - redirect to username setup page
+        console.log('🔄 Redirecting new user to username setup page');
+        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/setup-username`);
+      } else {
+        // Existing user - redirect to chat page
+        console.log('🔄 Redirecting existing user to friends page');
+        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/friends`);
+      }
+    });
 
   } catch (error) {
     console.error('❌ Google callback failed:', error);
@@ -726,7 +798,21 @@ exports.setUsername = async (req, res) => {
  * @route GET /api/user
  */
 exports.getCurrentUser = (req, res) => {
+  console.log('🔍 getCurrentUser - Request received');
+  console.log('🔍 getCurrentUser - Session ID:', req.sessionID);
+  console.log('🔍 getCurrentUser - User from middleware:', req.user);
+  console.log('🔍 getCurrentUser - Session user:', req.session?.user);
+  
   // req.user is set by ensureAuthenticated middleware
+  if (!req.user) {
+    console.log('❌ getCurrentUser - No user found in request object');
+    return res.status(401).json({ 
+      success: false, 
+      error: 'User not found in request' 
+    });
+  }
+  
+  console.log('✅ getCurrentUser - Returning user data for:', req.user.username);
   res.json({ 
     success: true, 
     user: req.user 
