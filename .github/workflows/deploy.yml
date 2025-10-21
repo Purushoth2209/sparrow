@@ -1,0 +1,41 @@
+name: Deploy Node.js Backend to EC2
+
+on:
+  push:
+    branches:
+      - v2  # triggers when you push to v2 branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: v2  # checkout the v2 branch
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Copy backend folder to EC2
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "sparrow-backend/*"
+          target: "/home/ubuntu/sparrow/sparrow-backend"
+
+      - name: Install dependencies & reload PM2
+        uses: appleboy/ssh-action@v0.1.5
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/sparrow/sparrow-backend
+            npm install
+            pm2 reload sparrow-backend || pm2 start server.js --name sparrow-backend
