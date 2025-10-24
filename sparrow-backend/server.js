@@ -95,7 +95,7 @@ app.set('trust proxy', 1);
 // Configure express-session for OIDC authentication
 // Using built-in MemoryStore for single-instance deployment (AWS EB)
 const sessionConfig = {
-  name: 'sparrow.sid',
+  name: 'sparrow.sid.v2',
   secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
   resave: false, // Don't save session if unmodified
   saveUninitialized: false, // Don't create session until something stored
@@ -107,11 +107,13 @@ const sessionConfig = {
   proxy: true,
   rolling: true, // Reset the cookie maxAge on every response
   cookie: {
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    domain: process.env.COOKIE_DOMAIN, // .sparrowchat.in
+    path: '/',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-  },
+  },  
 };
 
 
