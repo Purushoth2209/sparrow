@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNotifications, NOTIFICATION_TYPES } from '../contexts/NotificationContext';
+import { getNotificationSoundSettings, setNotificationSoundEnabled, setNotificationSoundVolume, testNotificationSound } from '../utils/notificationSound';
 import './styles/NotificationManager.css';
 
 const NotificationManager = () => {
@@ -18,8 +19,15 @@ const NotificationManager = () => {
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [soundSettings, setSoundSettings] = useState({ enabled: true, volume: 0.7 });
   const historyRef = useRef(null);
   const settingsRef = useRef(null);
+
+  // Load sound settings on mount
+  useEffect(() => {
+    const settings = getNotificationSoundSettings();
+    setSoundSettings(settings);
+  }, []);
 
   // Close history/settings when clicking outside
   useEffect(() => {
@@ -50,6 +58,21 @@ const NotificationManager = () => {
     clearAll();
     setIsHistoryOpen(false);
     console.log('🗑️ All notifications cleared');
+  };
+
+  // Sound settings handlers
+  const handleSoundToggle = (enabled) => {
+    setNotificationSoundEnabled(enabled);
+    setSoundSettings(prev => ({ ...prev, enabled }));
+  };
+
+  const handleVolumeChange = (volume) => {
+    setNotificationSoundVolume(volume);
+    setSoundSettings(prev => ({ ...prev, volume }));
+  };
+
+  const handleTestSound = () => {
+    testNotificationSound('message_received');
   };
 
   const getNotificationIcon = (type) => {
@@ -268,6 +291,50 @@ const NotificationManager = () => {
                   </span>
                 </div>
               </div>
+
+              <div className="setting-item">
+                <label htmlFor="notification-sound">
+                  Notification Sound
+                </label>
+                <div className="setting-control">
+                  <input
+                    id="notification-sound"
+                    type="checkbox"
+                    checked={soundSettings.enabled}
+                    onChange={(e) => handleSoundToggle(e.target.checked)}
+                  />
+                  <span className="setting-description">
+                    Play sound when receiving notifications
+                  </span>
+                </div>
+              </div>
+
+              {soundSettings.enabled && (
+                <div className="setting-item">
+                  <label htmlFor="sound-volume">
+                    Sound Volume: {Math.round(soundSettings.volume * 100)}%
+                  </label>
+                  <div className="setting-control">
+                    <input
+                      id="sound-volume"
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={soundSettings.volume}
+                      onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                      className="volume-slider"
+                    />
+                    <button
+                      className="test-sound-button"
+                      onClick={handleTestSound}
+                      title="Test notification sound"
+                    >
+                      🔊 Test
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {browserPermission === 'default' && (
                 <div className="setting-item">

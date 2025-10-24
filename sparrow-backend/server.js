@@ -107,10 +107,10 @@ const sessionConfig = {
   proxy: true,
   rolling: true, // Reset the cookie maxAge on every response
   cookie: {
-    domain: process.env.COOKIE_DOMAIN, // .sparrowchat.in
+    domain: process.env.NODE_ENV === 'production' ? '.sparrowchat.in' : undefined, // .sparrowchat.in
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000,
-    httpOnly: true,
+    httpOnly: process.env.NODE_ENV === 'production',
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   },  

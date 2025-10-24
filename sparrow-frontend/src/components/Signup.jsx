@@ -3,6 +3,7 @@ import axios from 'axios';
 import './styles/modern-theme.css';
 import PasswordField from './PasswordField';
 import GoogleOAuthButton from './GoogleOAuthButton';
+import CountryCodeSelector from './CountryCodeSelector';
 import Logo from "../Logo.png";
 import { useNavigate } from 'react-router-dom';
 
@@ -15,6 +16,11 @@ const Signup = () => {
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
   const [usernameStatus, setUsernameStatus] = useState('');
+  
+  // Phone number specific states
+  const [countryCode, setCountryCode] = useState('+91'); // Default to India
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [showPhoneInput, setShowPhoneInput] = useState(false);
 
   useEffect(() => {
     // Check if user is already authenticated
@@ -90,17 +96,75 @@ const Signup = () => {
     if (!value) {
       setIdentifierType('');
       setIdentifierValid(true);
+      setShowPhoneInput(false);
+      setPhoneNumber(''); // Clear phone number when input is empty
       return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (emailRegex.test(value.toLowerCase())) {
       setIdentifierType('email');
       setIdentifierValid(true);
+      setShowPhoneInput(false);
     } else {
-      // Rough phone check: digits, +, spaces, hyphens allowed
-      const phoneRegex = /^[+]?[- 0-9()]{6,}$/;
+      // If it's not an email, show phone input
       setIdentifierType('phone');
-      setIdentifierValid(phoneRegex.test(value));
+      setShowPhoneInput(true);
+      setIdentifierValid(true); // Will be validated when form is submitted
+      
+      // Extract phone number from the typed value
+      // Remove country code if present (starts with +)
+      let phoneNumber = value;
+      let detectedCountryCode = '+91'; // Default to India
+      
+      if (value.startsWith('+')) {
+        // Find the first space or extract everything after the country code
+        const spaceIndex = value.indexOf(' ');
+        if (spaceIndex > 0) {
+          detectedCountryCode = value.substring(0, spaceIndex);
+          phoneNumber = value.substring(spaceIndex + 1);
+        } else {
+          // If no space, try to extract after common country codes
+          const commonCodes = ['+91', '+1', '+44', '+86', '+81', '+82', '+61', '+49', '+33', '+39', '+34', '+7', '+55', '+52', '+54', '+27', '+20', '+234', '+254', '+92', '+880', '+94', '+977', '+93', '+98', '+90', '+966', '+971', '+974', '+965', '+973', '+968', '+60', '+65', '+66', '+84', '+63', '+62', '+64'];
+          for (const code of commonCodes) {
+            if (value.startsWith(code)) {
+              detectedCountryCode = code;
+              phoneNumber = value.substring(code.length);
+              break;
+            }
+          }
+        }
+      }
+      
+      // Clean the phone number (remove spaces, hyphens, parentheses)
+      phoneNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+      setPhoneNumber(phoneNumber);
+      setCountryCode(detectedCountryCode);
+      
+      // Focus the phone number input after a short delay to allow rendering
+      setTimeout(() => {
+        const phoneInput = document.querySelector('.phone-number-input');
+        if (phoneInput) {
+          phoneInput.focus();
+        }
+      }, 100);
+    }
+  };
+
+  const handlePhoneNumberChange = (value) => {
+    setPhoneNumber(value);
+    // Update the main identifier with the full phone number
+    if (value.trim()) {
+      setIdentifier(`${countryCode}${value}`);
+    } else {
+      setIdentifier('');
+    }
+  };
+
+  const handleCountryCodeChange = (code) => {
+    setCountryCode(code);
+    // Update the main identifier with the new country code
+    if (phoneNumber.trim()) {
+      setIdentifier(`${code}${phoneNumber}`);
     }
   };
 
@@ -143,18 +207,56 @@ const Signup = () => {
           />
           {usernameStatus === 'available' && <div className="validation-message validation-success">Username is available</div>}
           {usernameStatus && usernameStatus !== 'available' && <div className="validation-message validation-error">Suggestions: {usernameStatus}</div>}
-          <input
-            type="text"
-            placeholder="Email or Phone Number"
-            value={identifier}
-            onChange={(e) => detectIdentifier(e.target.value)}
-            className="signup-input"
-            style={{ fontSize: '16px' }} // Prevents zoom on iOS
-            autoComplete="email"
-          />
-          {identifier && (
+          {!showPhoneInput ? (
+            <input
+              type="text"
+              placeholder="Email or Phone Number"
+              value={identifier}
+              onChange={(e) => detectIdentifier(e.target.value)}
+              className="signup-input"
+              style={{ fontSize: '16px' }} // Prevents zoom on iOS
+              autoComplete="email"
+            />
+          ) : (
+            <div className="phone-input-container">
+              <div className="phone-input-row">
+                <CountryCodeSelector
+                  value={countryCode}
+                  onChange={handleCountryCodeChange}
+                  placeholder="Country"
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone Number"
+                  value={phoneNumber}
+                  onChange={(e) => handlePhoneNumberChange(e.target.value)}
+                  className="signup-input phone-number-input"
+                  style={{ fontSize: '16px' }} // Prevents zoom on iOS
+                  autoComplete="tel"
+                />
+              </div>
+              <button
+                type="button"
+                className="switch-to-email-btn"
+                onClick={() => {
+                  setShowPhoneInput(false);
+                  setIdentifier('');
+                  setPhoneNumber('');
+                  setCountryCode('+91'); // Reset to default
+                }}
+              >
+                Use email instead
+              </button>
+            </div>
+          )}
+          {identifier && !showPhoneInput && (
             <div className={`validation-message ${identifierValid ? 'validation-success' : 'validation-error'}`}>
               {identifierType === 'email' ? 'Detected email' : identifierType === 'phone' ? 'Detected phone' : ''} {identifierValid ? '' : '(format looks invalid)'}
+            </div>
+          )}
+          {showPhoneInput && (
+            <div className="validation-message validation-info">
+              Enter your phone number without the country code
             </div>
           )}
           <PasswordField

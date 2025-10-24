@@ -38,10 +38,8 @@ router.post('/send', ensureAuthenticated, async (req, res) => {
     const newMessage = await sendMessage(senderId, receiverId, content);
 
     const savedMessage = newMessage;
-    savedMessage.timestamp = new Date(savedMessage.timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+    // Keep timestamp as ISO string for frontend to handle timezone conversion
+    savedMessage.timestamp = new Date(savedMessage.timestamp).toISOString();
 
     // Emit message via socket (socket.io will handle decryption for real-time display)
     const { io } = require('../socketio');
@@ -89,13 +87,10 @@ router.post('/send/batch', ensureAuthenticated, async (req, res) => {
     // Use the batch message controller for optimized encryption
     const savedMessages = await sendBatchMessages(messagesWithSender);
 
-    // Format timestamps
+    // Keep timestamps as ISO strings for frontend timezone handling
     const formattedMessages = savedMessages.map(msg => ({
       ...msg,
-      timestamp: new Date(msg.timestamp).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
+      timestamp: new Date(msg.timestamp).toISOString()
     }));
 
     // Emit messages via socket for real-time delivery

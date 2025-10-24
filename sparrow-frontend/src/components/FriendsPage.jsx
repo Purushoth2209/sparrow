@@ -1140,6 +1140,45 @@ const FriendsPage = () => {
 const ChatArea = ({ friend, messages, onSendMessage, onCloseChat, onRemoveFriend, showBackButton = false }) => {
   const [message, setMessage] = useState('');
 
+  // Format message timestamp to user's local time
+  const formatMessageTime = (timestamp) => {
+    if (!timestamp) return '';
+    
+    try {
+      // Handle different timestamp formats
+      let date;
+      
+      if (typeof timestamp === 'string') {
+        // If it's already a formatted time string, return as is
+        if (timestamp.includes(':') && !timestamp.includes('T') && !timestamp.includes('Z')) {
+          return timestamp;
+        }
+        // Try to parse as date (handles ISO strings)
+        date = new Date(timestamp);
+      } else if (timestamp instanceof Date) {
+        date = timestamp;
+      } else {
+        // Fallback to current time
+        date = new Date();
+      }
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return 'Just now';
+      }
+      
+      // Format as local time (e.g., "10:25 AM")
+      return date.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (error) {
+      console.warn('Error formatting message timestamp:', error);
+      return 'Just now';
+    }
+  };
+
   const handleSend = () => {
     if (message.trim()) {
       onSendMessage(message);
@@ -1272,7 +1311,7 @@ const ChatArea = ({ friend, messages, onSendMessage, onCloseChat, onRemoveFriend
               >
                 <div className="message-content">{msg.content}</div>
                 <div className="message-time">
-                  <span>{msg.timestamp}</span>
+                  <span>{formatMessageTime(msg.timestamp)}</span>
                   {msg.senderId === localStorage.getItem('profileId') && (
                     <MessageStatus status={msg.status} timestamp={msg.timestamp} />
                   )}

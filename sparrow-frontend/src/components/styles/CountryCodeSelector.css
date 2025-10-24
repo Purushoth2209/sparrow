@@ -1,0 +1,266 @@
+/* Country Code Selector Styles - Aligned with Sparrow Theme */
+.country-code-selector {
+  position: relative;
+  width: 100%;
+  max-width: 140px; /* Reduced width for more compact design */
+  opacity: 0;
+  transform: scale(0.95);
+  transition: all 0.3s ease;
+  animation: fadeInCountrySelector 0.3s ease forwards;
+  z-index: 1000;
+}
+
+@keyframes fadeInCountrySelector {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Force the exact same styling as signup-input */
+.country-code-selector .country-code-trigger {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 12px !important;
+  border: 1px solid #cccccc !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  cursor: pointer !important;
+  transition: all 0.3s ease !important;
+  font-size: 1rem !important;
+  min-height: 48px !important;
+  box-sizing: border-box !important;
+  color: #333333 !important;
+}
+
+/* Additional specific rule to match signup-input exactly */
+.signup-input-style {
+  border: 1px solid #cccccc !important;
+  background: #ffffff !important;
+  color: #333333 !important;
+}
+
+.signup-input-style:hover {
+  border-color: #888888 !important;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.country-code-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  border: 1px solid #cccccc !important;
+  border-radius: 8px;
+  background: #ffffff !important;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+  min-height: 48px;
+  box-sizing: border-box;
+  color: #333333 !important;
+}
+
+.country-code-selector .country-code-trigger:hover {
+  border-color: #888888 !important;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.country-code-selector .country-code-trigger.open {
+  border-color: #888888 !important;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1) !important;
+}
+
+.country-code-trigger:hover {
+  border-color: #888888 !important;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.country-code-trigger.open {
+  border-color: #888888 !important;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.selected-country {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.country-flag {
+  font-size: 16px;
+}
+
+.country-code {
+  font-weight: 600;
+  color: #333333;
+  font-size: 0.9rem;
+}
+
+.placeholder {
+  color: #777777;
+  font-size: 0.9rem;
+}
+
+.dropdown-arrow {
+  color: #777777;
+  transition: transform 0.3s ease;
+  font-size: 10px;
+}
+
+.country-code-trigger.open .dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.country-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1px solid #cccccc;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 999999 !important;
+  margin-top: 4px;
+  max-height: 280px;
+  overflow: hidden;
+}
+
+/* Simple and effective z-index for dropdown */
+.country-code-selector .country-dropdown {
+  z-index: 999999 !important;
+}
+
+/* Ensure dropdown appears above password field */
+.country-dropdown {
+  z-index: 999999 !important;
+  position: absolute !important;
+}
+
+/* Override any potential conflicts with notification components */
+.country-dropdown,
+.country-code-selector .country-dropdown,
+.phone-input-container .country-dropdown {
+  z-index: 999999 !important;
+  position: absolute !important;
+}
+
+/* GLOBAL OVERRIDE - Force dropdown above ALL elements including notifications */
+* .country-dropdown,
+* .country-dropdown * {
+  z-index: 999999 !important;
+}
+
+.search-container {
+  padding: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.country-search {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #cccccc;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  outline: none;
+  transition: all 0.3s ease;
+  background: #ffffff;
+  color: #333333;
+}
+
+.country-search:focus {
+  border-color: #888888;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.country-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.country-option {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  gap: 10px;
+}
+
+.country-option:hover {
+  background-color: #f7f7f7;
+}
+
+.country-option.selected {
+  background-color: #4a9eff;
+  color: #ffffff;
+}
+
+.country-option .country-flag {
+  font-size: 16px;
+  min-width: 20px;
+}
+
+.country-option .country-name {
+  flex: 1;
+  font-weight: 500;
+  color: #333333;
+  font-size: 0.9rem;
+}
+
+.country-option .country-code {
+  font-weight: 600;
+  color: #777777;
+  font-size: 0.85rem;
+}
+
+.country-option.selected .country-name,
+.country-option.selected .country-code {
+  color: #ffffff;
+}
+
+.no-results {
+  padding: 16px;
+  text-align: center;
+  color: #777777;
+  font-style: italic;
+  font-size: 0.9rem;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+  .country-code-selector {
+    max-width: 120px; /* Even more compact on mobile */
+  }
+  
+  .country-code-trigger {
+    padding: 10px;
+    font-size: 0.9rem;
+    min-height: 44px;
+  }
+  
+  .country-dropdown {
+    max-height: 250px;
+  }
+  
+  .country-list {
+    max-height: 200px;
+  }
+  
+  .country-option {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+  
+  .country-option .country-flag {
+    font-size: 14px;
+    min-width: 18px;
+  }
+}
+

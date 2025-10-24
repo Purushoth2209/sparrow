@@ -388,10 +388,10 @@ const initializeSocket = async (server) => {
         // Use the encrypted message controller to send message
         const savedMessage = await sendMessage(senderId, receiverId, content);
 
-        // Format message with time for display
+        // Keep timestamp as ISO string for frontend timezone handling
         const messageWithTime = {
           ...savedMessage,
-          timestamp: new Date(savedMessage.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          timestamp: new Date(savedMessage.timestamp).toISOString(),
         };
 
         const receiverSocketId = userSockets.get(receiverId);

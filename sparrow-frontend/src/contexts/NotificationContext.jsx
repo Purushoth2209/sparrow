@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { useSocket } from './SocketContext';
+import { playNotificationSound } from '../utils/notificationSound';
 
 const NotificationContext = createContext();
 
@@ -162,7 +163,6 @@ const createBrowserNotification = (notification) => {
   }
   
   if (Notification.permission !== 'granted') {
-    console.log('ℹ️ Browser notification permission not granted yet');
     return null;
   }
   
@@ -171,7 +171,6 @@ const createBrowserNotification = (notification) => {
   
   // Only show browser notification if app is not focused
   if (isAppFocused) {
-    console.log('📱 App is focused, skipping browser notification');
     return null;
   }
   
@@ -212,7 +211,7 @@ const createBrowserNotification = (notification) => {
     badge: '/favicon.ico',
     tag: notification.type, // Group notifications by type
     requireInteraction: false,
-    silent: false,
+    silent: false, // Enable sound for browser notifications
     data: {
       senderId: notification.senderId,
       messageId: notification.messageId,
@@ -225,7 +224,6 @@ const createBrowserNotification = (notification) => {
     
     // Handle notification click - focus the app and potentially navigate to chat
     browserNotification.onclick = () => {
-      console.log('🔔 Browser notification clicked:', notification);
       
       // Focus the window
       window.focus();
@@ -236,7 +234,6 @@ const createBrowserNotification = (notification) => {
       // If it's a message notification, we could potentially navigate to the chat
       // For now, just focus the app
       if (notification.type === NOTIFICATION_TYPES.MESSAGE_RECEIVED) {
-        console.log('💬 Message notification clicked, focusing app');
         // The app will handle showing the message in the UI
       }
     };
@@ -283,19 +280,16 @@ export const NotificationProvider = ({ children }) => {
       
       // Request permission when app loads if not already granted or denied
       if (Notification.permission === 'default') {
-        console.log('🔔 Requesting browser notification permission...');
         requestBrowserNotificationPermission().then((permission) => {
           dispatch({ type: 'SET_BROWSER_PERMISSION', payload: permission });
           if (permission === 'granted') {
             dispatch({ type: 'TOGGLE_BROWSER_NOTIFICATIONS', payload: true });
-            console.log('✅ Browser notification permission granted');
           } else if (permission === 'denied') {
             console.warn('⚠️ Browser notification permission denied by user');
             dispatch({ type: 'TOGGLE_BROWSER_NOTIFICATIONS', payload: false });
           }
         });
       } else if (Notification.permission === 'granted') {
-        console.log('✅ Browser notification permission already granted');
         dispatch({ type: 'TOGGLE_BROWSER_NOTIFICATIONS', payload: true });
       } else if (Notification.permission === 'denied') {
         console.warn('⚠️ Browser notification permission was previously denied');
@@ -320,31 +314,22 @@ export const NotificationProvider = ({ children }) => {
       ...notificationData
     };
     
-    console.log('🔔 Adding notification:', {
-      type: notification.type,
-      title: notification.title,
-      username: notification.username,
-      message: notification.message
-    });
     
     // Always add to persistent panel
     dispatch({ type: 'ADD_NOTIFICATION', payload: notification });
+    
+    // Play notification sound
+    try {
+      playNotificationSound(notification.type);
+    } catch (error) {
+      // Silent error handling for production
+    }
     
     // Show browser notification if enabled
     if (state.browserNotificationsEnabled && state.browserPermission === 'granted') {
       createBrowserNotification(notification);
     }
     
-    console.log('🔔 Dual notification added successfully:', {
-      id: notification.id,
-      type: notification.type,
-      title: notification.title,
-      username: notification.username,
-      message: notification.message,
-      timestamp: notification.timestamp,
-      willShowAsToast: true,
-      willShowInPanel: true
-    });
     
     return notification;
   }, [state.browserNotificationsEnabled, state.browserPermission]);
@@ -426,7 +411,6 @@ export const NotificationProvider = ({ children }) => {
 
     // Handle the new messageReceivedNotification event - this fires 100% reliably
     const handleMessageReceivedNotification = (notificationData) => {
-      console.log('🔔 messageReceivedNotification event received:', notificationData);
       
       // Only show notification if message is not from current user
       const currentUserId = localStorage.getItem('profileId');
@@ -436,7 +420,6 @@ export const NotificationProvider = ({ children }) => {
         
         // Prevent duplicate notifications
         if (processedNotifications.has(notificationKey)) {
-          console.log('⚠️ Duplicate notification prevented:', notificationKey);
           return;
         }
         
@@ -457,19 +440,17 @@ export const NotificationProvider = ({ children }) => {
           username: notificationData.senderName,
           senderId: notificationData.senderId,
           senderProfileImage: notificationData.senderProfileImage,
-          timestamp: new Date(notificationData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp: new Date(notificationData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
           data: notificationData,
           messageId: notificationData.messageId
         };
         
-        console.log('🔔 Adding message notification:', notification);
         addNotification(notification);
       }
     };
 
     // Keep the old handler for backward compatibility but prioritize the new one
     const handleMessageReceived = (messageData) => {
-      console.log('📨 Message received notification triggered (legacy):', messageData);
       
       // Only show notification if message is not from current user
       const currentUserId = localStorage.getItem('profileId');
@@ -479,7 +460,6 @@ export const NotificationProvider = ({ children }) => {
         
         // Prevent duplicate notifications
         if (processedNotifications.has(notificationKey)) {
-          console.log('⚠️ Duplicate legacy notification prevented:', notificationKey);
           return;
         }
         
@@ -498,36 +478,30 @@ export const NotificationProvider = ({ children }) => {
           message: `${messageData.senderUsername || 'Someone'}: ${messagePreview}`,
           username: messageData.senderUsername,
           senderId: messageData.senderId,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
           data: messageData
         };
         
-        console.log('🔔 Adding legacy message notification:', notificationData);
         addNotification(notificationData);
       }
     };
 
     const handleFriendRequestReceived = (requestData) => {
-      console.log('👋 Friend request received:', requestData);
       notifyFriendRequestReceived(requestData);
     };
 
     const handleFriendRequestAccepted = (requestData) => {
-      console.log('✅ Friend request accepted:', requestData);
       notifyFriendRequestAccepted(requestData);
     };
 
     const handleFriendRequestRejected = (requestData) => {
-      console.log('❌ Friend request rejected:', requestData);
       notifyFriendRequestRejected(requestData);
     };
 
     const handleFriendUnfriended = (requestData) => {
-      console.log('👥 Friend unfriended:', requestData);
       notifyFriendUnfriended(requestData);
     };
 
-    console.log('🔧 Setting up notification socket listeners');
     
     // Remove any existing listeners first to prevent duplicates
     socket.off('messageReceivedNotification', handleMessageReceivedNotification);
@@ -547,7 +521,6 @@ export const NotificationProvider = ({ children }) => {
 
     // Cleanup listeners
     return () => {
-      console.log('🧹 Cleaning up notification socket listeners');
       socket.off('messageReceivedNotification', handleMessageReceivedNotification);
       socket.off('receiveMessage', handleMessageReceived);
       socket.off('friendRequestReceived', handleFriendRequestReceived);
@@ -571,7 +544,6 @@ export const NotificationProvider = ({ children }) => {
   }, []);
 
   const clearAll = useCallback(() => {
-    console.log('🗑️ Clearing all notifications');
     dispatch({ type: 'CLEAR_ALL' });
     
     // Also clear any pending browser notifications

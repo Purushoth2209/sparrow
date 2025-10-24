@@ -395,6 +395,101 @@ body {
   background: var(--border-dark);
 }
 
+/* Phone Input Styles */
+.phone-input-container {
+  width: 100%;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s ease;
+  animation: slideInPhoneInput 0.3s ease forwards;
+}
+
+@keyframes slideInPhoneInput {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.phone-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.phone-number-input {
+  flex: 1;
+  min-width: 0;
+  opacity: 0;
+  transform: translateX(-10px);
+  transition: all 0.3s ease;
+  animation: slideInPhoneNumber 0.3s ease 0.1s forwards;
+}
+
+@keyframes slideInPhoneNumber {
+  from {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.switch-to-email-btn {
+  background: none;
+  border: none;
+  color: var(--primary-color, #3b82f6);
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: underline;
+  margin-top: 8px;
+  padding: 0;
+  transition: color 0.2s ease;
+  opacity: 0;
+  transform: translateY(5px);
+  animation: fadeInButton 0.3s ease 0.2s forwards;
+}
+
+@keyframes fadeInButton {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.switch-to-email-btn:hover {
+  color: var(--primary-color-dark, #2563eb);
+}
+
+.validation-info {
+  color: var(--text-muted, #718096);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* Mobile responsiveness for phone input */
+@media (max-width: 768px) {
+  .phone-input-row {
+    flex-direction: column;
+    gap: 6px;
+  }
+  
+  .phone-number-input {
+    width: 100%;
+  }
+}
+
 /* Message Bubble Styles - Updated for new theme */
 .message-bubble {
   margin-bottom: 0.75rem;
@@ -593,6 +688,30 @@ body {
 .password-field {
   width: 100%;
   position: relative;
+  z-index: 1 !important;
+}
+
+/* Ensure password field elements don't interfere with dropdowns */
+.password-field .eye-toggle {
+  z-index: 2 !important;
+}
+
+/* Force password field to stay below country code dropdown */
+.password-field,
+.password-field * {
+  z-index: 1 !important;
+}
+
+/* Ensure signup form doesn't create stacking context conflicts */
+.signup-form {
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure phone input container has proper stacking */
+.phone-input-container {
+  position: relative;
+  z-index: 10;
 }
 
 .login-btn, .signup-btn {
