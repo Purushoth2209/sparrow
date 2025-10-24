@@ -15,6 +15,7 @@ const friendRoutes = require('./routes/friendRoutes');
 const { initializeSocket } = require('./socketio');
 const logWithTimestamp = require('./utils/logger');
 
+
 // Override console methods globally for this application
 console.log = logWithTimestamp.log;
 console.error = logWithTimestamp.error;
@@ -22,11 +23,14 @@ console.warn = logWithTimestamp.warn;
 console.info = logWithTimestamp.info;
 console.debug = logWithTimestamp.debug;
 
+
 const app = express();
 const server = http.createServer(app);
 
+
 // Trust proxy (needed for correct secure cookie handling behind proxies/CDNs)
 app.set('trust proxy', 1);
+
 
 // Enable CORS with credentials support for session-based auth
 const allowedOrigins = [
@@ -37,6 +41,7 @@ const allowedOrigins = [
   'https://sparrow-frontend-sigma.vercel.app', // Vercel deployment
   'http://localhost:3000' // Local development
 ].filter(Boolean); // Remove any undefined values
+
 
 app.use(cors({
   origin: (origin, callback) => {
@@ -65,11 +70,14 @@ app.use(cors({
 }));
 
 
+
 // Parse JSON request bodies
 app.use(bodyParser.json());
 
+
 // Parse cookies FIRST (before session middleware)
 app.use(cookieParser());
+
 
 // Debug middleware to log cookie headers (optional - can be removed in production)
 app.use((req, res, next) => {
@@ -80,7 +88,9 @@ app.use((req, res, next) => {
   next();
 });
 
+
 app.set('trust proxy', 1);
+
 
 // Configure express-session for OIDC authentication
 // Using built-in MemoryStore for single-instance deployment (AWS EB)
@@ -104,6 +114,7 @@ const sessionConfig = {
   },
 };
 
+
 console.log('🔧 Session Configuration:', {
   name: sessionConfig.name,
   secret: sessionConfig.secret ? '***SET***' : 'NOT SET',
@@ -115,12 +126,15 @@ console.log('🔧 Session Configuration:', {
   cookieSameSite: sessionConfig.cookie.sameSite
 });
 
+
 // Configure session middleware AFTER cookie-parser
 const sessionMiddleware = session(sessionConfig);
 console.log('🔧 Session middleware created:', !!sessionMiddleware);
 console.log('🔧 Session config store:', !!sessionConfig.store);
 
+
 app.use(sessionMiddleware);
+
 
 // Add debugging to see what's happening with session ID resolution
 app.use((req, res, next) => {
@@ -133,7 +147,9 @@ app.use((req, res, next) => {
   next();
 });
 
+
 // Session ID resolution is now handled naturally by express-session
+
 
 
 // Debug Session Store - Enhanced debugging to show serialization
@@ -160,8 +176,10 @@ app.use((req, res, next) => {
   next();
 });
 
+
 const mongoURI = process.env.MONGO_URI;
 console.log(`[DEBUG] Attempting to connect MongoStore. MONGO_URI present: ${!!mongoURI}`);
+
 
 mongoose.connect(mongoURI)
   .then(() => {
@@ -203,4 +221,3 @@ mongoose.connect(mongoURI)
   .catch(err => {
     console.error('❌ MongoDB connection failed:', err);
     process.exit(1);
-  });
