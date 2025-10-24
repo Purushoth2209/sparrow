@@ -145,20 +145,12 @@ const PrivateRoute = ({ element: Component, ...rest }) => {
 
   if (isCheckingAuth) {
     return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        height: '100vh',
-        fontFamily: 'Roboto, sans-serif',
-        fontSize: '1.2rem',
-        color: '#555'
-      }}>
-        <div className="text-center">
-          <div className="spinner-border" role="status">
+      <div className="auth-loading-container">
+        <div className="auth-loading-content">
+          <div className="spinner-border auth-spinner" role="status">
             <span className="visually-hidden">Loading...</span>
           </div>
-          <p className="mt-2">Verifying authentication...</p>
+          <p className="auth-loading-text">Verifying authentication...</p>
         </div>
       </div>
     );

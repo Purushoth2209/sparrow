@@ -2284,3 +2284,996 @@ body {
 
 /* ===== NOTIFICATION SYSTEM STYLES ===== */
 /* Note: Notification styles are now handled in NotificationManager.css */
+
+/* ===== MOBILE RESPONSIVENESS ENHANCEMENTS ===== */
+
+/* Auth Loading Container */
+.auth-loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-family: 'Roboto', sans-serif;
+  background: var(--bg-primary);
+  padding: 1rem;
+}
+
+.auth-loading-content {
+  text-align: center;
+  max-width: 300px;
+  width: 100%;
+}
+
+.auth-spinner {
+  width: 3rem;
+  height: 3rem;
+  border-width: 0.3rem;
+  color: var(--brand-primary);
+  margin-bottom: 1rem;
+}
+
+.auth-loading-text {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin: 0;
+  font-weight: 500;
+}
+
+/* App Container Mobile Improvements */
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  overflow-x: hidden;
+}
+
+/* Mobile Viewport Meta Tag Support */
+@supports (height: 100dvh) {
+  .app-container {
+    min-height: 100dvh;
+  }
+  
+  .auth-loading-container {
+    height: 100dvh;
+  }
+}
+
+/* Mobile Navigation Improvements */
+.mobile-nav-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  padding: 0.5rem;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.mobile-nav-toggle:hover {
+  background: var(--bg-secondary);
+  color: var(--brand-primary);
+}
+
+.mobile-nav-toggle:active {
+  transform: scale(0.95);
+}
+
+/* Mobile Header Improvements */
+.mobile-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-light);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.mobile-header .d-flex {
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  min-height: 60px;
+}
+
+.mobile-header .modern-logo {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-header .app-logo {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+/* Mobile Content Area */
+.mobile-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.mobile-content-row {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: calc(100vh - 60px);
+}
+
+.mobile-content-row.show-chat {
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out;
+}
+
+.mobile-content-row.show-friends {
+  transform: translateX(0);
+  transition: transform 0.3s ease-in-out;
+}
+
+/* Mobile Friends List */
+.mobile-friends-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-light);
+  min-height: 0;
+}
+
+.mobile-friends-header {
+  padding: 1rem;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.mobile-friends-list {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.mobile-friends-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mobile-friends-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mobile-friends-list::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 2px;
+}
+
+.mobile-friends-list::-webkit-scrollbar-thumb:hover {
+  background: var(--border-dark);
+}
+
+/* Mobile Chat Container */
+.mobile-chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
+  min-height: 0;
+  position: relative;
+}
+
+.mobile-chat-header {
+  padding: 1rem;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-light);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 70px;
+}
+
+.mobile-chat-back-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  font-weight: bold;
+  transition: all var(--transition-fast);
+  touch-action: manipulation;
+}
+
+.mobile-chat-back-btn:hover {
+  background: var(--brand-primary);
+  color: white;
+  border-color: var(--brand-primary);
+  transform: translateY(-1px);
+}
+
+.mobile-chat-back-btn:active {
+  transform: translateY(0);
+}
+
+.mobile-chat-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-chat-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-chat-status {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-chat-status.online {
+  color: var(--success-color);
+}
+
+.mobile-chat-status.offline {
+  color: var(--text-muted);
+}
+
+.mobile-chat-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success-color);
+  display: inline-block;
+}
+
+.mobile-chat-status-dot.offline {
+  background: var(--text-muted);
+}
+
+/* Mobile Messages Area */
+.mobile-messages-container {
+  flex: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  padding: 1rem;
+  background: var(--bg-primary);
+  min-height: 0;
+}
+
+.mobile-messages-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mobile-messages-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mobile-messages-container::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 2px;
+}
+
+.mobile-messages-container::-webkit-scrollbar-thumb:hover {
+  background: var(--border-dark);
+}
+
+/* Mobile Message Bubbles */
+.mobile-message-bubble {
+  margin-bottom: 1rem;
+  max-width: 85%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.mobile-message-sent {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  margin-left: auto;
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-sm) var(--radius-lg);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  position: relative;
+}
+
+.mobile-message-received {
+  background: var(--brand-primary);
+  color: white;
+  margin-right: auto;
+  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-lg) var(--radius-sm);
+  padding: 0.75rem 1rem;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.mobile-message-content {
+  font-size: 0.95rem;
+  line-height: 1.4;
+  margin: 0;
+  word-break: break-word;
+}
+
+.mobile-message-time {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.mobile-message-status {
+  font-size: 0.7rem;
+  opacity: 0.8;
+}
+
+/* Mobile Input Area */
+.mobile-input-container {
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-light);
+  padding: 1rem;
+  position: sticky;
+  bottom: 0;
+  z-index: 100;
+}
+
+.mobile-input-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  padding: 0.5rem;
+  transition: all var(--transition-normal);
+}
+
+.mobile-input-wrapper:focus-within {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(0, 77, 145, 0.1);
+}
+
+.mobile-message-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1rem;
+  padding: 0.75rem;
+  resize: none;
+  outline: none;
+  min-height: 44px;
+  max-height: 120px;
+  line-height: 1.4;
+  font-family: inherit;
+}
+
+.mobile-message-input::placeholder {
+  color: var(--text-muted);
+}
+
+.mobile-send-button {
+  background: var(--brand-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  transition: all var(--transition-fast);
+  touch-action: manipulation;
+}
+
+.mobile-send-button:hover {
+  background: var(--brand-primary-hover);
+  transform: translateY(-1px);
+}
+
+.mobile-send-button:active {
+  transform: translateY(0);
+}
+
+.mobile-send-button:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Mobile Search Improvements */
+.mobile-search-container {
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+.mobile-search-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-lg);
+  font-size: 1rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: all var(--transition-normal);
+  min-height: 48px;
+}
+
+.mobile-search-input:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(0, 77, 145, 0.1);
+}
+
+.mobile-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Mobile Friend Items */
+.mobile-friend-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-primary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  touch-action: manipulation;
+  min-height: 70px;
+}
+
+.mobile-friend-item:hover {
+  background: var(--bg-secondary);
+  transform: translateX(4px);
+}
+
+.mobile-friend-item:active {
+  transform: scale(0.98);
+  background: var(--bg-tertiary);
+}
+
+.mobile-friend-item.active {
+  background: var(--brand-primary);
+  color: white;
+  box-shadow: var(--shadow-md);
+}
+
+.mobile-friend-item.active .mobile-friend-name,
+.mobile-friend-item.active .mobile-friend-status {
+  color: white;
+}
+
+.mobile-friend-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-primary) 0%, var(--brand-primary-light) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: white;
+  font-size: 1.1rem;
+  border: 2px solid var(--border-light);
+  transition: all var(--transition-normal);
+  flex-shrink: 0;
+}
+
+.mobile-friend-item:hover .mobile-friend-avatar {
+  border-color: var(--brand-primary);
+  transform: scale(1.05);
+}
+
+.mobile-friend-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.mobile-friend-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-friend-status {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mobile-friend-status.online {
+  color: var(--success-color);
+}
+
+.mobile-friend-status.offline {
+  color: var(--text-muted);
+}
+
+.mobile-friend-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success-color);
+  display: inline-block;
+}
+
+.mobile-friend-status-dot.offline {
+  background: var(--text-muted);
+}
+
+.mobile-friend-unread {
+  background: var(--brand-primary);
+  color: white;
+  border-radius: 50%;
+  min-width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* Mobile Empty States */
+.mobile-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  text-align: center;
+  min-height: 300px;
+}
+
+.mobile-empty-state-icon {
+  font-size: 3rem;
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+  opacity: 0.6;
+}
+
+.mobile-empty-state-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+}
+
+.mobile-empty-state-description {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  max-width: 300px;
+  line-height: 1.5;
+}
+
+/* Mobile Forms */
+.mobile-form-container {
+  padding: 1rem;
+  max-width: 100%;
+}
+
+.mobile-form-group {
+  margin-bottom: 1rem;
+}
+
+.mobile-form-label {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.mobile-form-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: all var(--transition-normal);
+  min-height: 48px;
+}
+
+.mobile-form-input:focus {
+  outline: none;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(0, 77, 145, 0.1);
+}
+
+.mobile-form-input::placeholder {
+  color: var(--text-muted);
+}
+
+.mobile-form-button {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--brand-primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  min-height: 48px;
+  touch-action: manipulation;
+}
+
+.mobile-form-button:hover {
+  background: var(--brand-primary-hover);
+  transform: translateY(-1px);
+}
+
+.mobile-form-button:active {
+  transform: translateY(0);
+}
+
+.mobile-form-button:disabled {
+  background: var(--text-muted);
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Mobile Alerts and Modals */
+.mobile-alert {
+  margin: 1rem;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  border: 1px solid;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.mobile-alert-success {
+  background: rgba(40, 167, 69, 0.1);
+  border-color: var(--success-color);
+  color: var(--success-color);
+}
+
+.mobile-alert-error {
+  background: rgba(220, 53, 69, 0.1);
+  border-color: var(--error-color);
+  color: var(--error-color);
+}
+
+.mobile-alert-warning {
+  background: rgba(255, 193, 7, 0.1);
+  border-color: var(--warning-color);
+  color: var(--warning-color);
+}
+
+.mobile-alert-info {
+  background: rgba(23, 162, 184, 0.1);
+  border-color: var(--info-color);
+  color: var(--info-color);
+}
+
+/* Mobile Loading States */
+.mobile-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: var(--text-secondary);
+}
+
+.mobile-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 0.2rem solid var(--border-light);
+  border-top: 0.2rem solid var(--brand-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-right: 0.75rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.mobile-loading-text {
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+/* Mobile Touch Improvements */
+.mobile-touch-target {
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+
+.mobile-touch-target:active {
+  transform: scale(0.95);
+}
+
+/* Mobile Safe Areas */
+@supports (padding: max(0px)) {
+  .mobile-safe-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+  
+  .mobile-safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+  
+  .mobile-safe-left {
+    padding-left: max(1rem, env(safe-area-inset-left));
+  }
+  
+  .mobile-safe-right {
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+/* Mobile Landscape Adjustments */
+@media (max-width: 896px) and (orientation: landscape) {
+  .mobile-header {
+    min-height: 50px;
+  }
+  
+  .mobile-header .d-flex {
+    padding: 0.5rem 1rem;
+  }
+  
+  .mobile-content-row {
+    min-height: calc(100vh - 50px);
+  }
+  
+  .mobile-friend-item {
+    min-height: 60px;
+    padding: 0.75rem 1rem;
+  }
+  
+  .mobile-friend-avatar {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+  
+  .mobile-chat-header {
+    min-height: 60px;
+    padding: 0.75rem 1rem;
+  }
+  
+  .mobile-messages-container {
+    padding: 0.75rem;
+  }
+  
+  .mobile-input-container {
+    padding: 0.75rem;
+  }
+}
+
+/* Mobile Portrait Adjustments */
+@media (max-width: 768px) and (orientation: portrait) {
+  .mobile-content-row {
+    min-height: calc(100vh - 60px);
+  }
+  
+  .mobile-friend-item {
+    min-height: 70px;
+  }
+  
+  .mobile-friend-avatar {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .mobile-chat-header {
+    min-height: 70px;
+  }
+}
+
+/* Extra Small Mobile Devices */
+@media (max-width: 360px) {
+  .mobile-header .d-flex {
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .mobile-header .modern-logo {
+    font-size: 1rem;
+  }
+  
+  .mobile-header .app-logo {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .mobile-friend-item {
+    padding: 0.75rem;
+    min-height: 65px;
+  }
+  
+  .mobile-friend-avatar {
+    width: 42px;
+    height: 42px;
+    font-size: 1rem;
+  }
+  
+  .mobile-friend-name {
+    font-size: 0.95rem;
+  }
+  
+  .mobile-friend-status {
+    font-size: 0.8rem;
+  }
+  
+  .mobile-chat-header {
+    padding: 0.75rem;
+    min-height: 65px;
+  }
+  
+  .mobile-messages-container {
+    padding: 0.75rem;
+  }
+  
+  .mobile-message-bubble {
+    max-width: 90%;
+    padding: 0.6rem 0.8rem;
+  }
+  
+  .mobile-message-content {
+    font-size: 0.9rem;
+  }
+  
+  .mobile-input-container {
+    padding: 0.75rem;
+  }
+  
+  .mobile-empty-state {
+    padding: 1.5rem 0.75rem;
+  }
+  
+  .mobile-empty-state-icon {
+    font-size: 2.5rem;
+  }
+  
+  .mobile-empty-state-title {
+    font-size: 1.1rem;
+  }
+  
+  .mobile-empty-state-description {
+    font-size: 0.9rem;
+  }
+}
+
+/* Mobile Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .mobile-header {
+    background: #1a1a1a;
+    border-bottom-color: #333;
+  }
+  
+  .mobile-friends-container {
+    background: #1a1a1a;
+  }
+  
+  .mobile-chat-container {
+    background: #1a1a1a;
+  }
+  
+  .mobile-friend-item {
+    background: #1a1a1a;
+    border-bottom-color: #333;
+  }
+  
+  .mobile-friend-item:hover {
+    background: #2a2a2a;
+  }
+  
+  .mobile-friend-item.active {
+    background: var(--brand-primary);
+  }
+  
+  .mobile-message-sent {
+    background: #2a2a2a;
+    border-color: #333;
+  }
+  
+  .mobile-message-received {
+    background: var(--brand-primary);
+  }
+  
+  .mobile-input-wrapper {
+    background: #2a2a2a;
+    border-color: #333;
+  }
+  
+  .mobile-form-input {
+    background: #1a1a1a;
+    border-color: #333;
+    color: #e0e0e0;
+  }
+  
+  .mobile-form-input:focus {
+    border-color: var(--brand-primary);
+  }
+}
+
+/* Mobile Accessibility Improvements */
+@media (prefers-reduced-motion: reduce) {
+  .mobile-content-row,
+  .mobile-friend-item,
+  .mobile-message-bubble,
+  .mobile-send-button,
+  .mobile-chat-back-btn {
+    transition: none;
+  }
+  
+  .mobile-friend-item:hover,
+  .mobile-send-button:hover,
+  .mobile-chat-back-btn:hover {
+    transform: none;
+  }
+}
+
+/* Mobile High Contrast Support */
+@media (prefers-contrast: high) {
+  .mobile-friend-item {
+    border: 2px solid var(--text-primary);
+  }
+  
+  .mobile-friend-item.active {
+    border-color: white;
+  }
+  
+  .mobile-message-bubble {
+    border: 2px solid var(--text-primary);
+  }
+  
+  .mobile-form-input {
+    border: 2px solid var(--text-primary);
+  }
+  
+  .mobile-form-input:focus {
+    border-color: var(--brand-primary);
+    border-width: 3px;
+  }
+}
