@@ -400,3 +400,5 @@ sparrow-backend/yarn-error.log*
 backend-deploy/npm-debug.log*
 backend-deploy/yarn-debug.log*
 backend-deploy/yarn-error.log*
+sparrow-backend/.elasticbeanstalk/app_versions/
+sparrow-backend/sparrow-backend-deploy-fixed.zip
