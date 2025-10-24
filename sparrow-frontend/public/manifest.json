@@ -1,6 +1,12 @@
 {
+<<<<<<< HEAD
   "short_name": "Sparrow Chat",
   "name": "Sparrow Chat - Connect with friends and family",
+=======
+  "short_name": "Sparrow",
+  "name": "Sparrow Chat App",
+  "description": "A modern, responsive chat application for connecting with friends",
+>>>>>>> v2-dev
   "icons": [
     {
       "src": "favicon.ico",
@@ -8,7 +14,16 @@
       "type": "image/x-icon"
     },
     {
+<<<<<<< HEAD
       "src": "sparrow-logo.png",
+=======
+      "src": "favicon.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "logo192.png",
+>>>>>>> v2-dev
       "type": "image/png",
       "sizes": "192x192"
     },
@@ -20,6 +35,7 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#004d91",
+  "background_color": "#ffffff",
+  "categories": ["social", "communication", "productivity"]
 }

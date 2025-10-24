@@ -20,6 +20,7 @@ const GlobalSearch = () => {
   const [friendToRemove, setFriendToRemove] = useState(null);
   const [showLogoutAlert, setShowLogoutAlert] = useState(false);
   const navigate = useNavigate();
+  
 
   const searchUsers = useCallback(async () => {
     setLoading(true);
@@ -313,6 +314,8 @@ const GlobalSearch = () => {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="simple-search-input"
                       size="lg"
+                      style={{ fontSize: '16px' }} // Prevents zoom on iOS
+                      autoComplete="off"
                     />
                   </div>
                   <Form.Text style={{ color: 'var(--text-secondary)' }}>

@@ -1,12 +1,12 @@
 const express = require('express');
 const Message = require('../models/Message');
 const User = require('../models/User');
-const { sendMessage, updateMessageStatus } = require('../controllers/messageController');
+const { sendMessage, sendBatchMessages, updateMessageStatus, getDecryptedMessages, getEncryptionStats } = require('../controllers/messageController');
 const ensureAuthenticated = require('../middleware/ensureAuthenticated');
 
 const router = express.Router();
 
-// Get messages between current user and a friend
+// Get messages between current user and a friend (with decryption)
 router.get('/:friendId', ensureAuthenticated, async (req, res) => {
   try {
     const { friendId } = req.params;
@@ -18,48 +18,32 @@ router.get('/:friendId', ensureAuthenticated, async (req, res) => {
       return res.status(403).json({ error: 'Cannot access messages with non-friend user' });
     }
 
-    // Get messages between users
-    const messages = await Message.find({
-      $or: [
-        { senderId: currentUserId, receiverId: friendId },
-        { senderId: friendId, receiverId: currentUserId }
-      ]
-    }).sort({ timestamp: 1 });
+    // Get and decrypt messages between users
+    const messages = await getDecryptedMessages(currentUserId, friendId);
 
     res.status(200).json({ messages });
   } catch (err) {
+    console.error('❌ Error fetching encrypted messages:', err);
     res.status(500).json({ error: 'Error fetching messages' });
   }
 });
 
+// Send encrypted message
 router.post('/send', ensureAuthenticated, async (req, res) => {
   try {
     const { receiverId, content } = req.body;
     const senderId = req.user.profileId;
 
-    // Validate friendship before sending
-    const currentUser = await User.findOne({ profileId: senderId });
-    if (!currentUser.friends.includes(receiverId)) {
-      return res.status(403).json({ error: 'Cannot send message to non-friend user' });
-    }
+    // Use the encrypted message controller
+    const newMessage = await sendMessage(senderId, receiverId, content);
 
-    const newMessage = new Message({
-      senderId,
-      receiverId,
-      content,
-      timestamp: new Date(),
-      status: 'sent'
-    });
-
-    await newMessage.save();
-
-    const savedMessage = newMessage.toObject();
-    savedMessage.timestamp = savedMessage.timestamp.toLocaleTimeString([], {
+    const savedMessage = newMessage;
+    savedMessage.timestamp = new Date(savedMessage.timestamp).toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
     });
 
-    // Emit message via socket
+    // Emit message via socket (socket.io will handle decryption for real-time display)
     const { io } = require('../socketio');
     const receiverSocketId = require('../socketio').userSockets.get(receiverId);
     if (receiverSocketId && io) {
@@ -71,12 +55,77 @@ router.post('/send', ensureAuthenticated, async (req, res) => {
       savedMessage.status = 'delivered';
       savedMessage.deliveredAt = new Date();
       
+      // Socket.io will handle decryption when emitting to receiver
       io.to(receiverSocketId).emit('receiveMessage', savedMessage);
     }
 
     res.status(200).json({ message: savedMessage });
   } catch (err) {
+    console.error('❌ Error sending encrypted message:', err);
     res.status(500).json({ error: 'Error sending message' });
+  }
+});
+
+// Send multiple messages in batch (optimized for performance)
+router.post('/send/batch', ensureAuthenticated, async (req, res) => {
+  try {
+    const { messages } = req.body; // Array of {receiverId, content} objects
+    const senderId = req.user.profileId;
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'Messages array is required and cannot be empty' });
+    }
+
+    if (messages.length > 10) {
+      return res.status(400).json({ error: 'Maximum 10 messages per batch' });
+    }
+
+    // Add senderId to each message
+    const messagesWithSender = messages.map(msg => ({
+      ...msg,
+      senderId: senderId
+    }));
+
+    // Use the batch message controller for optimized encryption
+    const savedMessages = await sendBatchMessages(messagesWithSender);
+
+    // Format timestamps
+    const formattedMessages = savedMessages.map(msg => ({
+      ...msg,
+      timestamp: new Date(msg.timestamp).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    }));
+
+    // Emit messages via socket for real-time delivery
+    const { io } = require('../socketio');
+    if (io) {
+      for (const message of formattedMessages) {
+        const receiverSocketId = require('../socketio').userSockets.get(message.receiverId);
+        if (receiverSocketId) {
+          // Update message status to delivered (receiver is online)
+          await Message.findByIdAndUpdate(message._id, { 
+            status: 'delivered', 
+            deliveredAt: new Date() 
+          });
+          message.status = 'delivered';
+          message.deliveredAt = new Date();
+          
+          // Socket.io will handle decryption when emitting to receiver
+          io.to(receiverSocketId).emit('receiveMessage', message);
+        }
+      }
+    }
+
+    res.status(200).json({ 
+      message: 'Batch messages sent successfully',
+      messages: formattedMessages,
+      count: formattedMessages.length
+    });
+  } catch (err) {
+    console.error('❌ Error sending batch messages:', err);
+    res.status(500).json({ error: 'Error sending batch messages' });
   }
 });
 
@@ -129,6 +178,36 @@ router.post('/updateStatus', async (req, res) => {
     res.status(200).json({ message: 'Message status updated' });
   } catch (err) {
     res.status(500).json({ error: 'Error updating message status' });
+  }
+});
+
+// Get encryption statistics (admin/monitoring endpoint)
+router.get('/stats/encryption', ensureAuthenticated, async (req, res) => {
+  try {
+    const stats = await getEncryptionStats();
+    res.status(200).json({ 
+      message: 'Encryption statistics retrieved successfully',
+      stats 
+    });
+  } catch (err) {
+    console.error('❌ Error getting encryption stats:', err);
+    res.status(500).json({ error: 'Error retrieving encryption statistics' });
+  }
+});
+
+// Get all messages for current user (with decryption)
+router.get('/', ensureAuthenticated, async (req, res) => {
+  try {
+    const currentUserId = req.user.profileId;
+    const messages = await getDecryptedMessages(currentUserId);
+    
+    res.status(200).json({ 
+      message: 'Messages retrieved successfully',
+      messages 
+    });
+  } catch (err) {
+    console.error('❌ Error fetching all encrypted messages:', err);
+    res.status(500).json({ error: 'Error fetching messages' });
   }
 });
 

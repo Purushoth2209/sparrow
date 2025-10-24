@@ -129,6 +129,8 @@ const Signup = () => {
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             className="signup-input"
+            style={{ fontSize: '16px' }} // Prevents zoom on iOS
+            autoComplete="name"
           />
           <input
             type="text"
@@ -136,6 +138,8 @@ const Signup = () => {
             value={username}
             onChange={(e) => checkUsername(e.target.value)}
             className="signup-input"
+            style={{ fontSize: '16px' }} // Prevents zoom on iOS
+            autoComplete="username"
           />
           {usernameStatus === 'available' && <div className="validation-message validation-success">Username is available</div>}
           {usernameStatus && usernameStatus !== 'available' && <div className="validation-message validation-error">Suggestions: {usernameStatus}</div>}
@@ -145,6 +149,8 @@ const Signup = () => {
             value={identifier}
             onChange={(e) => detectIdentifier(e.target.value)}
             className="signup-input"
+            style={{ fontSize: '16px' }} // Prevents zoom on iOS
+            autoComplete="email"
           />
           {identifier && (
             <div className={`validation-message ${identifierValid ? 'validation-success' : 'validation-error'}`}>
@@ -156,10 +162,12 @@ const Signup = () => {
             onChange={(e) => setPassword(e.target.value)}
             inputClassName="signup-input"
             containerClassName="password-field"
+            inputStyle={{ fontSize: '16px' }} // Prevents zoom on iOS
           />
           <button 
             type="submit" 
             className="signup-btn"
+            style={{ minHeight: '48px' }}
           >
             Signup
           </button>

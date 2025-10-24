@@ -5,6 +5,8 @@ import Signup from './components/Signup';
 import FriendsPage from './components/FriendsPage';
 import GlobalSearch from './components/GlobalSearch';
 import UsernameSetup from './components/UsernameSetup';
+import { SocketProvider, useSocket } from './contexts/SocketContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 import './components/styles/modern-theme.css';
 
 // PrivateRoute Component to protect authenticated pages
@@ -12,6 +14,7 @@ import './components/styles/modern-theme.css';
 const PrivateRoute = ({ element: Component, ...rest }) => {
   const [isCheckingAuth, setIsCheckingAuth] = React.useState(true);
   const [isAuthenticated, setIsAuthenticated] = React.useState(false);
+  const { socket, reRegisterSocket } = useSocket();
 
   React.useEffect(() => {
     const checkAuth = async (retryCount = 0) => {
@@ -46,6 +49,15 @@ const PrivateRoute = ({ element: Component, ...rest }) => {
               localStorage.setItem('fullName', data.user.fullName || '');
               localStorage.setItem('profileImage', data.user.profileImage || '');
               setIsAuthenticated(true);
+              
+              // Register socket for authenticated user
+              if (socket && socket.connected) {
+                console.log('🔍 DEBUG: PrivateRoute - Registering socket for authenticated user:', data.user.profileId);
+                socket.emit('register', data.user.profileId);
+              } else if (reRegisterSocket) {
+                console.log('🔍 DEBUG: PrivateRoute - Socket not ready, will re-register');
+                setTimeout(() => reRegisterSocket(), 100);
+              }
             } else {
               console.log('❌ Invalid session data, clearing local storage');
               localStorage.clear();
@@ -96,6 +108,15 @@ const PrivateRoute = ({ element: Component, ...rest }) => {
               localStorage.setItem('fullName', data.user.fullName || '');
               localStorage.setItem('profileImage', data.user.profileImage || '');
               setIsAuthenticated(true);
+              
+              // Register socket for authenticated user (Google OAuth flow)
+              if (socket && socket.connected) {
+                console.log('🔍 DEBUG: PrivateRoute - Registering socket for Google OAuth user:', data.user.profileId);
+                socket.emit('register', data.user.profileId);
+              } else if (reRegisterSocket) {
+                console.log('🔍 DEBUG: PrivateRoute - Socket not ready for Google OAuth, will re-register');
+                setTimeout(() => reRegisterSocket(), 100);
+              }
             } else {
               console.log('❌ No valid session found');
               setIsAuthenticated(false);
@@ -284,24 +305,28 @@ const App = () => {
   }, []);
 
   return (
-    <Router>
-      <div className="app-container">
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/setup-username" element={<UsernameSetup />} />
-          <Route
-            path="/friends"
-            element={<PrivateRoute element={<FriendsPage />} />}
-          />  {/* Protected route for friends page (default) */}
-          <Route
-            path="/global-search"
-            element={<PrivateRoute element={<GlobalSearch />} />}
-          />  {/* Protected route for global search */}
-          <Route path="/" element={<Navigate to="/friends" replace />} />
-        </Routes>
-      </div>
-    </Router>
+    <SocketProvider>
+      <NotificationProvider>
+        <Router>
+          <div className="app-container">
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/setup-username" element={<UsernameSetup />} />
+              <Route
+                path="/friends"
+                element={<PrivateRoute element={<FriendsPage />} />}
+              />  {/* Protected route for friends page */}
+              <Route
+                path="/global-search"
+                element={<PrivateRoute element={<GlobalSearch />} />}
+              />  {/* Protected route for global search */}
+              <Route path="/" element={<Navigate to="/login" replace />} />
+            </Routes>
+          </div>
+        </Router>
+      </NotificationProvider>
+    </SocketProvider>
   );
 };
 

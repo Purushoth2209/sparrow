@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import io from 'socket.io-client';
 import './styles/modern-theme.css';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Logo from "../Logo.png";
 import PasswordField from './PasswordField';
 import GoogleOAuthButton from './GoogleOAuthButton';
+import { useSocket } from '../contexts/SocketContext';
 
 const Login = () => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [socket, setSocket] = useState(null);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { socket, reRegisterSocket } = useSocket();
 
   useEffect(() => {
     // Check if user is already authenticated (session-based)
@@ -31,14 +31,7 @@ const Login = () => {
       // Clean up URL
       window.history.replaceState({}, document.title, '/login');
     }
-
-    const socketInstance = io(process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000');
-    setSocket(socketInstance);
-
-    return () => {
-      if (socketInstance) socketInstance.disconnect();
-    };
-  }, [searchParams]);
+  }, [searchParams, navigate]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -62,15 +55,21 @@ const Login = () => {
         localStorage.setItem('profileImage', data.user.profileImage || '');
         console.log('✅ Session-based authentication successful');
 
-        // Connect to Socket.IO
-        if (socket) {
-          socket.emit('setUser', data.user.profileId);
+        // Register with Socket.IO using the global socket context
+        if (socket && socket.connected) {
+          console.log('🔍 DEBUG: Login - Registering socket with profileId:', data.user.profileId);
+          socket.emit('register', data.user.profileId);
+          
+          // Wait a moment for the registration to complete before navigating
+          setTimeout(() => {
+            console.log('🔥 SESSION AUTHENTICATION WORKING - ' + new Date().toISOString());
+            navigate('/friends');
+          }, 100);
+        } else {
+          console.log('🔍 DEBUG: Login - Socket not ready, navigating anyway (SocketContext will handle registration)');
+          console.log('🔥 SESSION AUTHENTICATION WORKING - ' + new Date().toISOString());
+          navigate('/friends');
         }
-
-        console.log('🔥 SESSION AUTHENTICATION WORKING - ' + new Date().toISOString());
-
-        // Navigate to chat
-        navigate('/friends');
       }
     } catch (error) {
       console.error('Login failed:', error);
@@ -103,16 +102,20 @@ const Login = () => {
             value={identifier}
             onChange={(e) => setIdentifier(e.target.value)}
             className="login-input"
+            style={{ fontSize: '16px' }} // Prevents zoom on iOS
+            autoComplete="username"
           />
           <PasswordField
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             inputClassName="login-input"
             containerClassName="password-field"
+            inputStyle={{ fontSize: '16px' }} // Prevents zoom on iOS
           />
           <button 
             type="submit" 
             className="login-btn"
+            style={{ minHeight: '48px' }}
           >
             Login
           </button>
