@@ -13,6 +13,14 @@ const oidcAuthRoutes = require('./routes/oidcAuthRoutes');
 const userRoutes = require('./routes/userRoutes');
 const friendRoutes = require('./routes/friendRoutes');
 const { initializeSocket } = require('./socketio');
+const logWithTimestamp = require('./utils/logger');
+
+// Override console methods globally for this application
+console.log = logWithTimestamp.log;
+console.error = logWithTimestamp.error;
+console.warn = logWithTimestamp.warn;
+console.info = logWithTimestamp.info;
+console.debug = logWithTimestamp.debug;
 
 const app = express();
 const server = http.createServer(app);
@@ -76,35 +84,30 @@ app.set('trust proxy', 1);
 
 // Configure express-session for OIDC authentication
 // Using built-in MemoryStore for single-instance deployment (AWS EB)
-const MemoryStore = require('express-session').MemoryStore;
 const sessionConfig = {
   name: 'sparrow.sid',
   secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
-  resave: true, // Force resave to ensure data persistence
-  saveUninitialized: true, // Save even uninitialized sessions
-  store: new MemoryStore(),
-  proxy: true, // always true when using reverse proxy (Nginx, Render, etc.)
-  rolling: false, // Don't reset expiration on every request
+  resave: false, // Don't save session if unmodified
+  saveUninitialized: false, // Don't create session until something stored
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGO_URI,
+    collectionName: 'sessions', // Optional: The name of the sessions collection
+    ttl: 14 * 24 * 60 * 60 // = 14 days. Default is 14 days.
+  }),
+  proxy: true,
+  rolling: true, // Reset the cookie maxAge on every response
   cookie: {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // Only require HTTPS in production
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Use 'lax' for localhost
-    // Remove domain restriction to see if that's causing the issue
-    // domain: process.env.COOKIE_DOMAIN || '.sparrowchat.in',
-  },
-  genid: (req) => {
-    // Let express-session handle session ID generation naturally
-    const newSessionId = require('crypto').randomBytes(32).toString('hex');
-    console.log('🆕 Generating new session ID:', newSessionId);
-    return newSessionId;
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
   },
 };
 
 console.log('🔧 Session Configuration:', {
   name: sessionConfig.name,
   secret: sessionConfig.secret ? '***SET***' : 'NOT SET',
-  store: 'Built-in MemoryStore',
+  store: 'MongoStore - NEW DEPLOYMENT',
   resave: sessionConfig.resave,
   saveUninitialized: sessionConfig.saveUninitialized,
   cookieDomain: sessionConfig.cookie.domain || 'default',
@@ -158,6 +161,7 @@ app.use((req, res, next) => {
 });
 
 const mongoURI = process.env.MONGO_URI;
+console.log(`[DEBUG] Attempting to connect MongoStore. MONGO_URI present: ${!!mongoURI}`);
 
 mongoose.connect(mongoURI)
   .then(() => {

@@ -1,5 +1,5 @@
 const express = require('express');
-const { registerUser, loginUser, logoutUser, checkUsername, setUsername } = require('../controllers/authController');
+const { registerUser, loginUser, logoutUser, checkUsername, setUsername, debugSession } = require('../controllers/authController');
 const ensureAuthenticated = require('../middleware/ensureAuthenticated');
 
 const router = express.Router();
@@ -23,6 +23,9 @@ router.post('/register', registerUser);
 router.post('/login', loginLimiter, loginUser);
 router.get('/check-username', checkUsername);
 router.post('/set-username', setUsername);
+
+// Debug route for session troubleshooting (not protected)
+router.get('/debug/session', debugSession);
 
 router.get('/protected', ensureAuthenticated, (req, res) => {
   res.json({ msg: 'This is a protected route', user: req.user });

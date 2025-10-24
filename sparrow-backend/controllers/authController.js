@@ -403,6 +403,15 @@ exports.loginUser = async (req, res) => {
             sessionKeys: Object.keys(req.session)
           });
           
+          // Clear any existing session cookies first to prevent duplicates
+          res.clearCookie('sparrow.sid', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            // Remove domain restriction to see if that's causing the issue
+            // domain: process.env.COOKIE_DOMAIN || '.sparrowchat.in',
+          });
+          
           // Explicitly set the session cookie to ensure it's updated
           res.cookie('sparrow.sid', req.sessionID, {
             httpOnly: true,
@@ -816,5 +825,36 @@ exports.getCurrentUser = (req, res) => {
   res.json({ 
     success: true, 
     user: req.user 
+  });
+};
+
+/**
+ * Debug Session Status
+ * 
+ * Returns detailed session information for debugging.
+ * This route is NOT protected to help debug authentication issues.
+ * 
+ * @route GET /api/debug/session
+ */
+exports.debugSession = (req, res) => {
+  console.log('🔍 Debug Session - Request received');
+  console.log('🔍 Debug Session - Session ID:', req.sessionID);
+  console.log('🔍 Debug Session - Session exists:', !!req.session);
+  console.log('🔍 Debug Session - Session user:', req.session?.user);
+  console.log('🔍 Debug Session - Cookies:', req.headers.cookie);
+  console.log('🔍 Debug Session - Parsed cookies:', req.cookies);
+  
+  res.json({
+    success: true,
+    debug: {
+      sessionID: req.sessionID,
+      sessionExists: !!req.session,
+      hasUser: !!req.session?.user,
+      user: req.session?.user || null,
+      cookies: req.headers.cookie,
+      parsedCookies: req.cookies,
+      sessionKeys: req.session ? Object.keys(req.session) : [],
+      timestamp: new Date().toISOString()
+    }
   });
 };
