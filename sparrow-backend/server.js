@@ -186,7 +186,7 @@ mongoose.connect(mongoURI)
     initializeSocket(server).catch(err => {
       console.error('❌ Socket.IO initialization failed:', err);
     });
-    
+    //.
     // Start server
     const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => {
