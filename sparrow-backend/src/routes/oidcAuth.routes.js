@@ -16,6 +16,7 @@
 
 const express = require('express');
 const router = express.Router();
+const oidcController = require('../controllers/oidc.controller');
 const authController = require('../controllers/auth.controller');
 
 // ===== Google OIDC Routes =====
@@ -28,7 +29,7 @@ const authController = require('../controllers/auth.controller');
  * @route   GET /auth/google
  * @access  Public
  */
-router.get('/google', authController.googleLogin);
+router.get('/google', oidcController.googleLogin);
 
 /**
  * Google OIDC Callback
@@ -39,7 +40,7 @@ router.get('/google', authController.googleLogin);
  * @route   GET /auth/google/callback
  * @access  Public (but validates state for CSRF protection)
  */
-router.get('/google/callback', authController.googleCallback);
+router.get('/google/callback', oidcController.googleCallback);
 
 // ===== Logout Route =====
 

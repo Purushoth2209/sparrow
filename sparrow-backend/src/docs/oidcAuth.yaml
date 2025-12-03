@@ -1,0 +1,52 @@
+paths:
+  /auth/google:
+    get:
+      summary: Initiate Google OIDC login
+      description: |
+        **🌐 Public Route** - No authentication required
+        
+        Redirects user to Google's consent screen for authentication
+      tags:
+        - OIDC Auth
+      responses:
+        '302':
+          description: Redirect to Google authorization URL
+        '500':
+          description: Failed to initiate Google login
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/google/callback:
+    get:
+      summary: Handle Google OIDC callback (web)
+      description: |
+        **🌐 Public Route** - No authentication required
+        
+        Handles Google OIDC callback and creates session (web). This is called by Google after user authentication.
+      tags:
+        - OIDC Auth
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema:
+            type: string
+          description: Authorization code from Google
+        - in: query
+          name: state
+          required: true
+          schema:
+            type: string
+          description: State parameter for CSRF protection
+      responses:
+        '302':
+          description: Redirect to frontend (success or error)
+        '500':
+          description: Authentication failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+

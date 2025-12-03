@@ -1,23 +1,9 @@
 const express = require('express');
 const { registerUser, loginUser, logoutUser, checkUsername, setUsername, debugSession } = require('../controllers/auth.controller');
 const ensureAuthenticated = require('../middlewares/ensureAuthenticated');
+const { loginLimiter, logoutLimiter } = require('../middlewares/rateLimit.middleware');
 
 const router = express.Router();
-const rateLimit = require('express-rate-limit');
-
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
-const logoutLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minute
-  max: 10, // Allow max 10 logout requests per minute
-  standardHeaders: true,
-  legacyHeaders: false,
-});
 
 router.post('/register', registerUser);
 router.post('/login', loginLimiter, loginUser);

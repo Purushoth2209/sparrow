@@ -1,0 +1,59 @@
+components:
+  schemas:
+    Message:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: MongoDB ObjectId
+        senderId:
+          type: string
+          description: Profile ID of sender
+        receiverId:
+          type: string
+          description: Profile ID of receiver
+        content:
+          type: string
+          description: Encrypted message content
+        status:
+          type: string
+          enum: [sent, delivered, read]
+          description: Message delivery status
+        timestamp:
+          type: string
+          format: date-time
+          description: Message timestamp
+        deliveredAt:
+          type: string
+          format: date-time
+          nullable: true
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    MessageBatch:
+      type: object
+      properties:
+        receiverId:
+          type: string
+        content:
+          type: string
+
+    EncryptionStats:
+      type: object
+      properties:
+        totalMessages:
+          type: number
+        encryptedMessages:
+          type: number
+        encryptionRate:
+          type: number
+          format: float
+

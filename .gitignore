@@ -8,6 +8,8 @@
 .env.test.local
 .env.production.local
 .env.*.local
+sparrow-backend/.env*
+*.env
 
 # Firebase service account keys
 *-firebase-adminsdk-*.json

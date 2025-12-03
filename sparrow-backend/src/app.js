@@ -74,17 +74,25 @@ app.use((req, res, next) => {
   next();
 });
 
+// Swagger API Documentation
+const swaggerDocs = require('./docs/swagger');
+app.use('/api-docs', swaggerDocs.serve, swaggerDocs.setup);
+
 // Routes
 const authRoutes = require('./routes/auth.routes');
+const mobileAuthRoutes = require('./routes/mobileAuth.routes');
 const messageRoutes = require('./routes/message.routes');
 const oidcAuthRoutes = require('./routes/oidcAuth.routes');
 const userRoutes = require('./routes/user.routes');
 const friendRoutes = require('./routes/friend.routes');
 
-// JWT-based auth routes (email/phone/username authentication)
+// Web session-based auth routes (email/phone/username authentication)
 app.use('/api/auth', authRoutes);
 
-// OIDC auth routes (Google login with OpenID Connect)
+// Mobile JWT-based auth routes
+app.use('/api/auth/mobile', mobileAuthRoutes);
+
+// OIDC auth routes (Google login with OpenID Connect for web)
 app.use('/auth', oidcAuthRoutes);
 
 // Protected user routes (requires authentication)

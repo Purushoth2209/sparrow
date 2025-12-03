@@ -1,0 +1,28 @@
+paths:
+  /api/health:
+    get:
+      summary: Health check
+      description: |
+        **🌐 Public Route** - No authentication required
+        
+        Check API health status and uptime. This endpoint is used for monitoring and load balancer health checks.
+      tags:
+        - Health
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  uptime:
+                    type: number
+                    description: Server uptime in seconds
+

@@ -1,0 +1,319 @@
+paths:
+  /api/auth/mobile/login:
+    post:
+      summary: Mobile login
+      description: |
+        **🌐 Public Route** - No authentication required
+        
+        Authenticate user with username/email/phone and password (JWT-based).
+        
+        **You only need ONE identifier method:**
+        - Use `email` + `password` (for email login)
+        - Use `phoneNumber` + `password` (for phone login)
+        - Use `identifier` + `password` (for username/email/phone login)
+        
+        Returns JWT access and refresh tokens for mobile apps.
+        
+        **After successful login:**
+        1. Copy the `accessToken` from the response (NOT the refreshToken)
+        2. Click the **"Authorize"** button at the top of this page
+        3. Paste the `accessToken` in the `bearerAuth` field (just the token, not "Bearer")
+        4. Click "Authorize"
+        5. The token will be automatically sent with all protected requests
+        
+        **Token Types:**
+        - **accessToken**: Use this for protected routes (expires in ~15 minutes)
+        - **refreshToken**: Use this with `POST /api/auth/mobile/refresh` to get a new accessToken when it expires (expires in ~30 days)
+      tags:
+        - Mobile Auth
+      security: []  # Login endpoint doesn't require authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                identifier:
+                  type: string
+                  description: Username, email, or phone (use this OR email OR phoneNumber)
+                  example: "johndoe"
+                email:
+                  type: string
+                  format: email
+                  description: Email address (use this OR phoneNumber OR identifier)
+                  example: "user@example.com"
+                phoneNumber:
+                  type: string
+                  description: Phone number (use this OR email OR identifier)
+                  example: "+1234567890"
+                password:
+                  type: string
+                  description: User password (required)
+                  example: "SecurePass123!"
+                country:
+                  type: string
+                  description: Country code (optional, only needed for phone validation)
+                  example: "US"
+            examples:
+              loginWithEmail:
+                summary: Login with email
+                value:
+                  email: "user@example.com"
+                  password: "SecurePass123!"
+              loginWithPhone:
+                summary: Login with phone number
+                value:
+                  phoneNumber: "+1234567890"
+                  password: "SecurePass123!"
+                  country: "US"
+              loginWithUsername:
+                summary: Login with username
+                value:
+                  identifier: "johndoe"
+                  password: "SecurePass123!"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileAuthResponse'
+        '400':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '423':
+          description: Account locked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/mobile/refresh:
+    post:
+      summary: Refresh access token
+      description: |
+        **🌐 Public Route** - No Authorization header needed (but requires refreshToken in request body)
+        
+        Get a new access token using a valid refresh token.
+        
+        **Important for Swagger:**
+        - This endpoint does NOT use the Authorization header
+        - Do NOT use the "Authorize" button for this endpoint
+        - You must provide `refreshToken` in the request body (not accessToken)
+        - The refreshToken comes from your login response
+        
+        **When to use:**
+        - When accessToken expires (after 15 minutes)
+        - When you receive 401 "Token expired" error
+        
+        **How it works:**
+        1. Send your refreshToken in the request body
+        2. Server verifies refreshToken (signature, expiration, database check)
+        3. If valid: Returns new accessToken (15 min expiry)
+        4. If invalid: Returns 401 error (login required)
+        
+        **Important:**
+        - RefreshToken is NOT rotated (same token can be used multiple times)
+        - RefreshToken expires after 30 days (then user must login again)
+        - If refreshToken was revoked (logout), it cannot be used
+        
+        **See full documentation:** `src/docs/TOKEN_GUIDE.md`
+      tags:
+        - Mobile Auth
+      security: []  # Explicitly no security - doesn't use Authorization header
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  description: JWT refresh token (from login response, NOT accessToken from Authorize button)
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            examples:
+              refreshExample:
+                summary: Refresh with refresh token
+                description: Use the refreshToken from your login response (NOT the accessToken)
+                value:
+                  refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c2VyLTE3NTk5OTQ0ODE4MjEiLCJwcm9maWxlSWQiOiJ1c2VyLTE3NTk5OTQ0ODE4MjEiLCJlbWFpbCI6bnVsbCwidXNlcm5hbWUiOiJwdXJ1c2hvdGgiLCJ0eXBlIjoicmVmcmVzaCIsImlhdCI6MTc2NDY5Nzk4NywiZXhwIjoxNzY3Mjg5OTg3fQ.GQ5J4nxAjCkbLghM1pCiZLWo9aFkvyi0_eNGFRJ3QCE"
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileAuthResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/mobile/logout:
+    post:
+      summary: Mobile logout
+      description: |
+        **🌐 Public Route** - No Authorization header needed (but requires refreshToken in request body)
+        
+        Logout user and invalidate refresh token.
+        
+        **Important for Swagger:**
+        - This endpoint does NOT use the Authorization header
+        - Do NOT use the "Authorize" button for this endpoint
+        - You must provide `refreshToken` in the request body (not accessToken)
+        - The refreshToken comes from your login response, not from the Authorize button
+        
+        **How to use in Swagger:**
+        1. Click "Try it out"
+        2. In the request body, paste your `refreshToken` (from login response)
+        3. Click "Execute"
+        4. The "Authorize" button is NOT needed for this endpoint
+      tags:
+        - Mobile Auth
+      security: []  # Explicitly no security - doesn't use Authorization header
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  description: JWT refresh token (from login response, NOT accessToken from Authorize button)
+                  example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            examples:
+              logoutExample:
+                summary: Logout with refresh token
+                description: Use the refreshToken from your login response (NOT the accessToken)
+                value:
+                  refreshToken: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c2VyLTE3NTk5OTQ0ODE4MjEiLCJwcm9maWxlSWQiOiJ1c2VyLTE3NTk5OTQ0ODE4MjEiLCJlbWFpbCI6bnVsbCwidXNlcm5hbWUiOiJwdXJ1c2hvdGgiLCJ0eXBlIjoicmVmcmVzaCIsImlhdCI6MTc2NDY5Nzk4NywiZXhwIjoxNzY3Mjg5OTg3fQ.GQ5J4nxAjCkbLghM1pCiZLWo9aFkvyi0_eNGFRJ3QCE"
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Refresh token required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/mobile/google-url:
+    get:
+      summary: Get Google OIDC authorization URL
+      description: |
+        **🌐 Public Route** - No authentication required
+        
+        Get Google OIDC authorization URL for mobile authentication
+      tags:
+        - Mobile Auth
+      responses:
+        '200':
+          description: Google auth URL generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      authUrl:
+                        type: string
+                        format: uri
+                      state:
+                        type: string
+                  message:
+                    type: string
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/mobile/google/callback:
+    get:
+      summary: Handle Google OIDC callback (mobile)
+      description: |
+        **🌐 Public Route** - No authentication required
+        
+        Handle Google OIDC callback and authenticate user (mobile)
+      tags:
+        - Mobile Auth
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema:
+            type: string
+          description: Authorization code from Google
+        - in: query
+          name: state
+          required: true
+          schema:
+            type: string
+          description: State parameter for CSRF protection
+      responses:
+        '200':
+          description: Google authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileAuthResponse'
+        '400':
+          description: Missing or invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+

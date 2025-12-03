@@ -1,0 +1,66 @@
+components:
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation successful"
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "Error message"
+        message:
+          type: string
+          example: "Error description"
+
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        user:
+          $ref: '#/components/schemas/UserSession'
+        message:
+          type: string
+
+    MobileAuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+              description: JWT access token
+            refreshToken:
+              type: string
+              description: JWT refresh token
+            user:
+              $ref: '#/components/schemas/UserSession'
+        message:
+          type: string
+
+    UsernameCheckResponse:
+      type: object
+      properties:
+        available:
+          type: boolean
+        message:
+          type: string
+        suggestions:
+          type: array
+          items:
+            type: string
+

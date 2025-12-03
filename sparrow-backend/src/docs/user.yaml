@@ -1,0 +1,136 @@
+paths:
+  /api/user:
+    get:
+      summary: Get current user profile
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Returns the authenticated user's profile information.
+        
+        **How to authenticate:**
+        - For web: Login via `POST /api/auth/login` first (session cookie is automatically sent)
+        - For mobile: Login via `POST /api/auth/mobile/login`, then use "Authorize" button with JWT token
+      tags:
+        - User
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  user:
+                    $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/profile:
+    get:
+      summary: Get user profile (alternative route)
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Alternative route for getting current user profile
+      tags:
+        - User
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  profile:
+                    $ref: '#/components/schemas/User'
+
+  /api/session-status:
+    get:
+      summary: Debug session status
+      description: |
+        **🌐 Public Route** - No authentication required
+        
+        Check session status for debugging. Useful for troubleshooting authentication issues.
+      tags:
+        - User
+      responses:
+        '200':
+          description: Session status information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  hasSession:
+                    type: boolean
+                  sessionId:
+                    type: string
+                  hasUser:
+                    type: boolean
+                  user:
+                    type: object
+                    nullable: true
+
+  /api/online-status:
+    get:
+      summary: Debug online status
+      description: |
+        **🌐 Public Route** - No authentication required
+        
+        Check online status for debugging. Shows which users are currently online.
+      tags:
+        - User
+      responses:
+        '200':
+          description: Online status information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  onlineUsers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        profileId:
+                          type: string
+                        username:
+                          type: string
+                        isOnline:
+                          type: boolean
+                        lastSeen:
+                          type: string
+                          format: date-time
+                  connectedSockets:
+                    type: array
+                    items:
+                      type: string
+                  socketCount:
+                    type: number
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+

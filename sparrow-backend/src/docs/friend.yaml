@@ -1,0 +1,323 @@
+paths:
+  /api/search-global:
+    get:
+      summary: Global user search
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Search for users globally by username. You must login first.
+      tags:
+        - Friend
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: username
+          required: true
+          schema:
+            type: string
+          description: Username to search for
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserSearchResult'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/search-friends:
+    get:
+      summary: Search friends
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Search for friends by username. You must login first.
+      tags:
+        - Friend
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: username
+          required: true
+          schema:
+            type: string
+          description: Username to search for
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  friends:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Friend'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/send-request:
+    post:
+      summary: Send friend request
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Send a friend request to another user. You must login first.
+      tags:
+        - Friend
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - toUserId
+              properties:
+                toUserId:
+                  type: string
+                  description: Profile ID of user to send request to
+      responses:
+        '200':
+          description: Friend request sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Target user ID is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/friend-requests:
+    get:
+      summary: Get friend requests
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Get all pending incoming friend requests. You must login first.
+      tags:
+        - Friend
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Friend requests retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  friendRequests:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/FriendRequest'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/accept-request:
+    post:
+      summary: Accept friend request
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Accept an incoming friend request. You must login first.
+      tags:
+        - Friend
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fromUserId
+              properties:
+                fromUserId:
+                  type: string
+                  description: Profile ID of user who sent the request
+      responses:
+        '200':
+          description: Friend request accepted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Sender user ID is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/reject-request:
+    post:
+      summary: Reject friend request
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Reject an incoming friend request. You must login first.
+      tags:
+        - Friend
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - fromUserId
+              properties:
+                fromUserId:
+                  type: string
+                  description: Profile ID of user who sent the request
+      responses:
+        '200':
+          description: Friend request rejected successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Sender user ID is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/friends:
+    get:
+      summary: Get friends list
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Get list of all friends. You must login first.
+      tags:
+        - Friend
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Friends list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  friends:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Friend'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/remove-friend:
+    post:
+      summary: Remove friend
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Remove a user from friends list. You must login first.
+      tags:
+        - Friend
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - friendId
+              properties:
+                friendId:
+                  type: string
+                  description: Profile ID of friend to remove
+      responses:
+        '200':
+          description: Friend removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Friend ID is required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+

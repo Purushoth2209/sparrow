@@ -1,0 +1,383 @@
+paths:
+  /api/auth/register:
+    post:
+      summary: Register a new user
+      description: |
+        **🌐 Public Route** - No authentication required
+        
+        Register a new user with email/phone, password, and username (web session-based)
+      tags:
+        - Auth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+                - username
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "user@example.com"
+                phoneNumber:
+                  type: string
+                  example: "+1234567890"
+                password:
+                  type: string
+                  minLength: 8
+                  example: "SecurePass123!"
+                username:
+                  type: string
+                  minLength: 3
+                  example: "johndoe"
+                fullName:
+                  type: string
+                  example: "John Doe"
+                country:
+                  type: string
+                  example: "US"
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid input or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/login:
+    post:
+      summary: Login user (web session)
+      description: |
+        **🌐 Public Route** - No authentication required
+        
+        Authenticate user with email/phone/username and password (web session-based).
+        
+        **You only need ONE identifier method:**
+        - Use `email` + `password` (for email login)
+        - Use `phoneNumber` + `password` (for phone login)
+        - Use `identifier` + `password` (for username/email/phone login)
+        
+        The `country` parameter is optional and only needed for phone number validation.
+        
+        **After successful login:**
+        - A session cookie (`connect.sid`) is automatically set in your browser
+        - This cookie is automatically sent with all subsequent requests
+        - You can now access protected routes without additional authentication
+        - The cookie persists until you logout or it expires
+      tags:
+        - Auth
+      security: []  # Login endpoint doesn't require authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Email address (use this OR phoneNumber OR identifier)
+                  example: "user@example.com"
+                phoneNumber:
+                  type: string
+                  description: Phone number (use this OR email OR identifier)
+                  example: "+1234567890"
+                identifier:
+                  type: string
+                  description: Username, email, or phone (use this OR email OR phoneNumber)
+                  example: "johndoe"
+                password:
+                  type: string
+                  description: User password (required)
+                  example: "SecurePass123!"
+                country:
+                  type: string
+                  description: Country code (optional, only needed for phone validation)
+                  example: "US"
+            examples:
+              loginWithEmail:
+                summary: Login with email
+                value:
+                  email: "user@example.com"
+                  password: "SecurePass123!"
+              loginWithPhone:
+                summary: Login with phone number
+                value:
+                  phoneNumber: "+1234567890"
+                  password: "SecurePass123!"
+                  country: "US"
+              loginWithUsername:
+                summary: Login with username
+                value:
+                  identifier: "johndoe"
+                  password: "SecurePass123!"
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              examples:
+                success:
+                  summary: Successful login
+                  value:
+                    success: true
+                    user:
+                      profileId: "550e8400-e29b-41d4-a716-446655440000"
+                      username: "johndoe"
+                      email: "user@example.com"
+                      fullName: "John Doe"
+                    message: "Login successful"
+        '400':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidCredentials:
+                  summary: Invalid credentials error
+                  value:
+                    success: false
+                    error: "Invalid credentials"
+                    message: "Invalid credentials"
+        '423':
+          description: Account locked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                accountLocked:
+                  summary: Account locked error
+                  value:
+                    success: false
+                    error: "Account locked"
+                    message: "Account has been locked due to too many failed login attempts"
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                serverError:
+                  summary: Server error
+                  value:
+                    success: false
+                    error: "Server error"
+                    message: "An internal server error occurred"
+
+  /api/auth/logout:
+    post:
+      summary: Logout user (web session)
+      description: Logout user and destroy session (web session-based)
+      tags:
+        - Auth
+      security:
+        - cookieAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                profileId:
+                  type: string
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/check-username:
+    get:
+      summary: Check username availability
+      description: |
+        **🌐 Public Route** - No authentication required
+        
+        Check if a username is available for registration
+      tags:
+        - Auth
+      parameters:
+        - in: query
+          name: username
+          required: true
+          schema:
+            type: string
+          description: Username to check
+      responses:
+        '200':
+          description: Username availability check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsernameCheckResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/set-username:
+    post:
+      summary: Set username for user
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth)
+        
+        Set or update username for authenticated user. You must login first via `POST /api/auth/login`.
+      tags:
+        - Auth
+      security:
+        - cookieAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  example: "johndoe"
+      responses:
+        '200':
+          description: Username set successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid username
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: User not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/debug/session:
+    get:
+      summary: Debug session information
+      description: |
+        **🌐 Public Route** - No authentication required
+        
+        Get detailed session information for debugging
+      tags:
+        - Auth
+      responses:
+        '200':
+          description: Session debug information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  debug:
+                    type: object
+                    properties:
+                      sessionID:
+                        type: string
+                      sessionExists:
+                        type: boolean
+                      hasUser:
+                        type: boolean
+                      user:
+                        type: object
+                        nullable: true
+                      cookies:
+                        type: string
+                      parsedCookies:
+                        type: object
+                      sessionKeys:
+                        type: array
+                        items:
+                          type: string
+                      timestamp:
+                        type: string
+                        format: date-time
+
+  /api/auth/protected:
+    get:
+      summary: Protected route test
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Test endpoint to verify authentication. Use this to test if your session/JWT token is working.
+      tags:
+        - Auth
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  msg:
+                    type: string
+                  user:
+                    type: object
+
+  /auth/logout:
+    get:
+      summary: Logout user (OIDC)
+      description: Logout user and destroy session (OIDC route)
+      tags:
+        - Auth
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+

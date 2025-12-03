@@ -1,0 +1,77 @@
+openapi: 3.0.0
+info:
+  title: Sparrow API
+  version: 1.0.0
+  description: |
+    Sparrow Chat Application API Documentation
+    
+    ## 🔐 Authentication Guide
+    
+    **For Web Session-Based Auth (cookieAuth):**
+    1. Login via `POST /api/auth/login` - this sets a session cookie automatically
+    2. The cookie (`connect.sid`) is automatically sent with subsequent requests
+    3. No need to manually set anything - just login first!
+    
+    **For Mobile JWT Auth (bearerAuth):**
+    1. Login via `POST /api/auth/mobile/login` - this returns `accessToken` and `refreshToken`
+    2. Copy the **`accessToken`** from the response (NOT refreshToken)
+    3. Click the **"Authorize"** button at the top of this page
+    4. Paste the `accessToken` in the `bearerAuth` field (just the token, not "Bearer")
+    5. Click "Authorize" - the token persists across requests
+    
+    **Token Guide:**
+    - **accessToken**: Use for protected routes (expires in ~15 minutes) ✅ Use this in Swagger!
+    - **refreshToken**: Use with `POST /api/auth/mobile/refresh` to get new accessToken (expires in ~30 days)
+    
+    **📚 Complete Token Guide:** See `src/docs/TOKEN_GUIDE.md` for all use cases, error handling, and best practices
+    
+    **Protected Routes:**
+    - Routes marked with 🔒 require authentication
+    - Use cookieAuth for web routes
+    - Use bearerAuth for mobile routes
+  contact:
+    name: Sparrow API Support
+
+servers:
+  - url: http://localhost:5000
+    description: Development server (default port)
+  - url: http://localhost:3000
+    description: Alternative port
+
+tags:
+  - name: Auth
+    description: Web session-based authentication endpoints
+  - name: Mobile Auth
+    description: Mobile JWT-based authentication endpoints
+  - name: OIDC Auth
+    description: OpenID Connect authentication endpoints (Google)
+  - name: User
+    description: User profile and management endpoints
+  - name: Friend
+    description: Friend request and management endpoints
+  - name: Message
+    description: Message sending and retrieval endpoints
+  - name: Notification
+    description: Push notification endpoints
+  - name: Health
+    description: Health check and status endpoints
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for mobile authentication. Format: Bearer {token}
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: connect.sid
+      description: Session cookie for web authentication
+
+security:
+  - bearerAuth: []
+  - cookieAuth: []
+
+paths: {}
+

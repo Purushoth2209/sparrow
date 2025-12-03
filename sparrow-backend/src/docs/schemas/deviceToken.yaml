@@ -1,0 +1,28 @@
+components:
+  schemas:
+    DeviceToken:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: MongoDB ObjectId
+        userId:
+          type: string
+          description: Profile ID of user
+        token:
+          type: string
+          description: Push notification token
+        platform:
+          type: string
+          enum: [ios, android, web]
+          description: Device platform
+        deviceId:
+          type: string
+          description: Unique device identifier
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+

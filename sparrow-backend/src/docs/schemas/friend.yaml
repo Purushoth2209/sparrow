@@ -1,0 +1,43 @@
+components:
+  schemas:
+    Friend:
+      type: object
+      properties:
+        profileId:
+          type: string
+        username:
+          type: string
+        fullName:
+          type: string
+        profileImage:
+          type: string
+          nullable: true
+        isOnline:
+          type: boolean
+        lastSeen:
+          type: string
+          format: date-time
+
+    FriendRequest:
+      type: object
+      properties:
+        fromUserId:
+          type: string
+          description: Profile ID of user who sent request
+        toUserId:
+          type: string
+          description: Profile ID of user who received request
+        status:
+          type: string
+          enum: [pending, accepted, rejected]
+        username:
+          type: string
+        fullName:
+          type: string
+        profileImage:
+          type: string
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+

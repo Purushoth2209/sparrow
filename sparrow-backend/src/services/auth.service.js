@@ -1,12 +1,8 @@
 const bcrypt = require('bcryptjs');
 const dns = require('dns').promises;
 const { parsePhoneNumberFromString } = require('libphonenumber-js');
-const crypto = require('crypto');
 const userRepository = require('../repositories/user.repository');
 const authRepository = require('../repositories/auth.repository');
-const { getGoogleClient } = require('../config/oidcClients');
-const { extractUserInfo } = require('../utils/tokenVerifier');
-const { generators } = require('openid-client');
 
 const MAX_LOGIN_ATTEMPTS = 5;
 const LOCKOUT_TIME = 15 * 60 * 1000;
@@ -268,80 +264,6 @@ async function loginUser(identifier, email, phoneNumber, password, country) {
   };
 }
 
-async function initiateGoogleLogin(req) {
-  const client = await getGoogleClient();
-  
-  const state = generators.state();
-  const nonce = generators.nonce();
-  
-  req.session.oidcState = state;
-  req.session.oidcNonce = nonce;
-  
-  const authorizationUrl = client.authorizationUrl({
-    scope: 'openid email profile',
-    state,
-    nonce,
-  });
-  
-  return authorizationUrl;
-}
-
-async function handleGoogleCallback(req) {
-  const client = await getGoogleClient();
-  const params = client.callbackParams(req);
-  
-  if (!req.session.oidcState || params.state !== req.session.oidcState) {
-    throw new Error('Invalid state parameter');
-  }
-  
-  const tokenSet = await client.callback(
-    process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/auth/google/callback',
-    params,
-    { 
-      state: req.session.oidcState,
-      nonce: req.session.oidcNonce 
-    }
-  );
-  
-  const claims = tokenSet.claims();
-  const userInfo = extractUserInfo(claims);
-  
-  let user = await authRepository.findUserByEmailOrProfileId(
-    userInfo.email,
-    `google-${userInfo.providerId}`
-  );
-  
-  if (!user) {
-    user = await userRepository.createUser({
-      fullName: userInfo.fullName,
-      email: userInfo.email,
-      password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10),
-      profileId: `google-${userInfo.providerId}`,
-      username: `temp_${userInfo.providerId}`,
-      profileImage: userInfo.picture,
-      isOnline: false,
-      socketId: null,
-      passwordChangedAt: new Date(),
-      needsUsernameSetup: true,
-    });
-  } else {
-    user.fullName = userInfo.fullName || user.fullName;
-    user.profileImage = userInfo.picture || user.profileImage;
-    user.email = userInfo.email || user.email;
-    await user.save();
-  }
-  
-  return {
-    profileId: user.profileId,
-    username: user.username,
-    email: user.email,
-    phoneNumber: user.phoneNumber,
-    fullName: user.fullName,
-    profileImage: user.profileImage,
-    needsUsernameSetup: user.needsUsernameSetup
-  };
-}
-
 async function setUsername(profileId, username) {
   const trimmedUsername = username.trim();
   
@@ -376,8 +298,6 @@ module.exports = {
   validatePassword,
   registerUser,
   loginUser,
-  initiateGoogleLogin,
-  handleGoogleCallback,
   setUsername,
   generateUsernameSuggestions,
   generateUniqueUsernameForGoogle

@@ -67,7 +67,9 @@ const userSchema = new mongoose.Schema({
   passwordChangedAt: { type: Date, default: null },
   // Username setup flag for Google OAuth users
   needsUsernameSetup: { type: Boolean, default: false },
-  // Note: Using session-based authentication, no need for refresh tokens
+  // Refresh tokens for mobile JWT authentication
+  refreshTokens: [{ type: String }],
+  // Note: Using session-based authentication for web, JWT for mobile
 });
 
 const User = mongoose.model('User', userSchema);

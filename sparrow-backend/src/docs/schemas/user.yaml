@@ -1,0 +1,88 @@
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: MongoDB ObjectId
+        profileId:
+          type: string
+          description: Unique profile identifier (UUID)
+        username:
+          type: string
+          description: Username
+          example: "johndoe"
+        email:
+          type: string
+          format: email
+          description: Email address
+          example: "john@example.com"
+        phoneNumber:
+          type: string
+          description: Phone number (normalized)
+          example: "+1234567890"
+        fullName:
+          type: string
+          description: Full name
+          example: "John Doe"
+        profileImage:
+          type: string
+          description: Profile image URL
+          nullable: true
+        isOnline:
+          type: boolean
+          description: Online status
+        lastSeen:
+          type: string
+          format: date-time
+          description: Last seen timestamp
+        friends:
+          type: array
+          items:
+            type: string
+          description: Array of friend profile IDs
+        friendRequests:
+          type: array
+          items:
+            type: object
+          description: Array of friend requests
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        needsUsernameSetup:
+          type: boolean
+          description: Whether user needs to set username
+
+    UserSession:
+      type: object
+      properties:
+        profileId:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+        fullName:
+          type: string
+
+    UserSearchResult:
+      type: object
+      properties:
+        profileId:
+          type: string
+        username:
+          type: string
+        fullName:
+          type: string
+        profileImage:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [none, friend, pending_sent, pending_received]
+          description: Relationship status with current user
+

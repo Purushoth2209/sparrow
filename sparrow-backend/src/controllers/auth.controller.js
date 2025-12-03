@@ -1,157 +1,143 @@
 const authService = require('../services/auth.service');
+const identifierService = require('../services/identifier.service');
+const sessionService = require('../services/session.service');
 const { userSockets, io: getIO } = require('../socket');
+const { errorResponse } = require('../utils/response');
 
 /**
  * Auth Controller
- * Handles HTTP request/response for authentication
+ * Handles HTTP request/response for web session-based authentication
  */
 
+/**
+ * Check username availability
+ */
 exports.checkUsername = async (req, res) => {
   try {
     const { username } = req.query;
     const result = await authService.checkUsernameAvailability(username);
-    return res.status(result.available ? 200 : 200).json(result);
+    return res.status(200).json(result);
   } catch (error) {
+    // Maintain original response format for this endpoint
     return res.status(500).json({ available: false, message: 'Server error', suggestions: [] });
   }
 };
 
+/**
+ * Register new user
+ */
 exports.registerUser = async (req, res) => {
   try {
-    const { identifier, email, phoneNumber, password, username, fullName, country } = req.body;
+    const { password, username, fullName, country } = req.body;
+    
+    // Parse and normalize identifiers
+    const { emailNormalized, phoneNormalized } = identifierService.parseIdentifier(req.body);
 
-    const idRaw = typeof identifier === 'string' ? identifier.trim() : undefined;
-    let emailNormalized = typeof email === 'string' ? email.trim().toLowerCase() : undefined;
-    let phoneNormalized = typeof phoneNumber === 'string' ? phoneNumber.trim() : undefined;
-
-    if (!emailNormalized && !phoneNormalized && idRaw) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (emailRegex.test(idRaw.toLowerCase())) {
-        emailNormalized = idRaw.toLowerCase();
-      } else {
-        phoneNormalized = idRaw;
-      }
-    }
-
+    // Validate required fields
     if ((!emailNormalized && !phoneNormalized) || !password || !username) {
-      return res.status(400).json({ message: 'Username, password, and an email or phone number are required' });
+      return errorResponse(res, 'Username, password, and an email or phone number are required', 400);
     }
 
+    // Validate password
     const passwordValidation = authService.validatePassword(password);
     if (!passwordValidation.valid) {
-      return res.status(400).json({ message: passwordValidation.message });
+      return errorResponse(res, passwordValidation.message, 400);
     }
 
+    // Validate email if provided
     if (emailNormalized) {
       const emailValidation = await authService.validateEmail(emailNormalized);
       if (!emailValidation.valid) {
-        return res.status(400).json({ message: emailValidation.message });
+        return errorResponse(res, emailValidation.message, 400);
       }
     }
 
+    // Validate phone if provided
+    let finalPhoneNumber = phoneNormalized;
     if (phoneNormalized) {
       const phoneValidation = await authService.validatePhoneNumber(phoneNormalized, country);
       if (!phoneValidation.valid) {
-        return res.status(400).json({ message: phoneValidation.message });
+        return errorResponse(res, phoneValidation.message, 400);
       }
-      phoneNormalized = phoneValidation.normalized;
+      finalPhoneNumber = phoneValidation.normalized;
     }
 
+    // Register user
     const user = await authService.registerUser({
       email: emailNormalized,
-      phoneNumber: phoneNormalized,
+      phoneNumber: finalPhoneNumber,
       password,
       username,
       fullName
     });
 
-    req.session.user = user;
-    req.session.touch();
-    req.session.save((err) => {
-      if (err) {
-        console.error('❌ Session save error:', err);
-        return res.status(500).json({ message: 'Session save failed' });
-      }
-
-      console.log('✅ Session persisted successfully for:', user.username);
-      
-      res.status(201).json({ 
+    // Persist session
+    try {
+      await sessionService.saveSession(req, user);
+      return res.status(201).json({
         success: true,
         user: req.session.user,
-        message: 'Registration successful' 
+        message: 'Registration successful'
       });
-    });
+    } catch (sessionError) {
+      return errorResponse(res, 'Session save failed', 500);
+    }
   } catch (error) {
-    console.error('❌ Registration error:', error);
-    res.status(500).json({ message: error.message || 'Server error' });
+    return errorResponse(res, error.message || 'Server error', 500);
   }
 };
 
+/**
+ * Login user
+ */
 exports.loginUser = async (req, res) => {
   try {
-    const { identifier, email, phoneNumber, password, country } = req.body;
+    const { country } = req.body;
 
-    const hasValidIdentifier = identifier && identifier.trim().length > 0;
-    const hasValidEmail = email && email.trim().length > 0;
-    const hasValidPhone = phoneNumber && phoneNumber.trim().length > 0;
-    const hasValidPassword = password && password.trim().length > 0;
-
-    if (!hasValidPassword || (!hasValidIdentifier && !hasValidEmail && !hasValidPhone)) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+    // Validate credentials presence
+    const validation = identifierService.validateLoginCredentials(req.body);
+    if (!validation.isValid) {
+      return errorResponse(res, 'Invalid credentials', 400);
     }
 
-    const idRaw = typeof identifier === 'string' ? identifier.trim() : undefined;
-    const emailRaw = typeof email === 'string' ? email.trim().toLowerCase() : undefined;
-    const phoneRaw = typeof phoneNumber === 'string' ? phoneNumber.trim() : undefined;
+    // Parse identifiers
+    const { identifierValue, emailRaw, phoneRaw } = identifierService.parseIdentifier(req.body);
+    const { password } = req.body;
 
-    const user = await authService.loginUser(idRaw || emailRaw || phoneRaw, emailRaw, phoneRaw, password, country);
+    // Attempt login
+    const user = await authService.loginUser(identifierValue, emailRaw, phoneRaw, password, country);
 
-    req.session.user = {
-      profileId: user.profileId,
-      username: user.username,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      fullName: user.fullName,
-      profileImage: user.profileImage,
-    };
+    // Persist session and set cookie
+    try {
+      await sessionService.saveSession(req, user);
+      sessionService.setSessionCookies(res, req.sessionID);
 
-    req.session.touch();
-    req.session.save((err) => {
-      if (err) {
-        console.error('❌ Session save error:', err);
-        return res.status(500).json({ message: 'Session save failed' });
-      }
-
-      console.log('✅ Session persisted successfully for:', user.username);
-      
-      res.clearCookie('sparrow.sid');
-      res.cookie('sparrow.sid', req.sessionID, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-      
-      res.status(200).json({
+      return res.status(200).json({
         success: true,
         user: req.session.user,
         message: 'Login successful',
         passwordWarning: user.passwordWarning
       });
-    });
-  } catch (error) {
-    console.error('❌ Login error:', error);
-    if (error.message.includes('locked')) {
-      return res.status(423).json({ message: error.message });
+    } catch (sessionError) {
+      return errorResponse(res, 'Session save failed', 500);
     }
-    res.status(400).json({ message: error.message || 'Server error' });
+  } catch (error) {
+    // Handle account lockout (423 status)
+    if (error.message && error.message.includes('locked')) {
+      return errorResponse(res, error.message, 423);
+    }
+    return errorResponse(res, error.message || 'Server error', 400);
   }
 };
 
+/**
+ * Logout user
+ */
 exports.logoutUser = async (req, res) => {
   try {
     const profileId = req.session?.user?.profileId || req.body?.profileId;
 
+    // Disconnect socket if connected
     if (profileId) {
       const socketId = userSockets.get(profileId);
       if (socketId) {
@@ -166,145 +152,78 @@ exports.logoutUser = async (req, res) => {
       }
     }
 
+    // Destroy session if exists
     if (req.session) {
-      req.session.destroy((err) => {
-        if (err) {
-          console.error('❌ Session destroy error:', err);
-          return res.status(500).json({ 
-            success: false, 
-            message: 'Logout failed' 
-          });
-        }
-
-        res.clearCookie('connect.sid');
-        res.clearCookie('sparrow.sid');
-        
-        res.status(200).json({ 
-          success: true, 
-          message: 'Logout successful' 
+      try {
+        await sessionService.destroySession(req);
+        sessionService.clearSessionCookies(res);
+        return res.status(200).json({
+          success: true,
+          message: 'Logout successful'
         });
-      });
+      } catch (destroyError) {
+        return errorResponse(res, 'Logout failed', 500);
+      }
     } else {
-      res.clearCookie('connect.sid');
-      res.clearCookie('sparrow.sid');
-      
-      res.status(200).json({ 
-        success: true, 
-        message: 'Logout successful' 
+      sessionService.clearSessionCookies(res);
+      return res.status(200).json({
+        success: true,
+        message: 'Logout successful'
       });
     }
   } catch (error) {
-    console.error('❌ Logout error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error' 
-    });
+    return errorResponse(res, 'Server error', 500);
   }
 };
 
-exports.googleLogin = async (req, res) => {
-  try {
-    const authorizationUrl = await authService.initiateGoogleLogin(req);
-    console.log('🔐 Redirecting to Google for authentication...');
-    res.redirect(authorizationUrl);
-  } catch (error) {
-    console.error('❌ Google login initiation failed:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to initiate Google login' 
-    });
-  }
-};
-
-exports.googleCallback = async (req, res) => {
-  try {
-    const user = await authService.handleGoogleCallback(req);
-
-    req.session.user = {
-      profileId: user.profileId,
-      username: user.username,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      fullName: user.fullName,
-      profileImage: user.profileImage,
-    };
-
-    delete req.session.oidcState;
-    delete req.session.oidcNonce;
-
-    req.session.touch();
-    req.session.save((err) => {
-      if (err) {
-        console.error('❌ Session save error:', err);
-        return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=session_failed`);
-      }
-
-      if (user.needsUsernameSetup) {
-        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/setup-username`);
-      } else {
-        res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/friends`);
-      }
-    });
-  } catch (error) {
-    console.error('❌ Google callback failed:', error);
-    delete req.session.oidcState;
-    delete req.session.oidcNonce;
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/login?error=auth_failed`);
-  }
-};
-
+/**
+ * Set username for user
+ */
 exports.setUsername = async (req, res) => {
   try {
     const { username } = req.body;
     const profileId = req.session?.user?.profileId;
 
     if (!profileId) {
-      return res.status(401).json({ 
-        success: false, 
-        message: 'User not authenticated' 
-      });
+      return errorResponse(res, 'User not authenticated', 401);
     }
 
     if (!username || typeof username !== 'string' || username.trim().length < 3) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Username must be at least 3 characters long' 
-      });
+      return errorResponse(res, 'Username must be at least 3 characters long', 400);
     }
 
     const user = await authService.setUsername(profileId, username);
     req.session.user.username = user.username;
 
-    res.json({ 
-      success: true, 
+    return res.status(200).json({
+      success: true,
       message: 'Username set successfully',
       user: req.session.user
     });
   } catch (error) {
-    console.error('❌ Set username error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message || 'Server error' 
-    });
+    return errorResponse(res, error.message || 'Server error', 500);
   }
 };
 
+/**
+ * Get current authenticated user
+ */
 exports.getCurrentUser = (req, res) => {
   if (!req.user) {
-    return res.status(401).json({ 
-      success: false, 
-      error: 'User not found in request' 
-    });
+    return errorResponse(res, 'User not found in request', 401);
   }
-  
-  res.json({ 
-    success: true, 
-    user: req.user 
+
+  return res.status(200).json({
+    success: true,
+    user: req.user
   });
 };
 
+/**
+ * Debug session information
+ */
 exports.debugSession = (req, res) => {
-  res.json({
+  return res.status(200).json({
     success: true,
     debug: {
       sessionID: req.sessionID,
@@ -318,4 +237,3 @@ exports.debugSession = (req, res) => {
     }
   });
 };
-
