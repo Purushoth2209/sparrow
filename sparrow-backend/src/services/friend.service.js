@@ -6,43 +6,6 @@ const friendRepository = require('../repositories/friend.repository');
  * Contains business logic for friends and friend requests
  */
 
-async function searchGlobalUsers(username, currentUserId) {
-  if (!username || username.trim().length < 2) {
-    throw new Error('Username must be at least 2 characters long');
-  }
-
-  const currentUser = await userRepository.findUserByProfileId(currentUserId);
-  if (!currentUser) {
-    throw new Error('Current user not found');
-  }
-
-  const users = await userRepository.searchUsersByUsername(username, currentUserId, 10);
-
-  const usersWithStatus = users.map(user => {
-    let status = 'send_request';
-    
-    if (currentUser.friends.includes(user.profileId)) {
-      status = 'already_friends';
-    } else {
-      const pendingRequest = user.friendRequests.find(
-        request => request.fromUserId === currentUserId && request.status === 'pending'
-      );
-      if (pendingRequest) {
-        status = 'request_sent';
-      }
-    }
-
-    return {
-      profileId: user.profileId,
-      username: user.username,
-      profileImage: user.profileImage,
-      status: status
-    };
-  });
-
-  return usersWithStatus;
-}
-
 async function searchFriends(username, currentUserId) {
   const currentUser = await userRepository.findUserByProfileId(currentUserId);
   if (!currentUser) {
@@ -219,7 +182,6 @@ async function removeFriend(currentUserId, friendId) {
 }
 
 module.exports = {
-  searchGlobalUsers,
   searchFriends,
   sendFriendRequest,
   getFriendRequests,

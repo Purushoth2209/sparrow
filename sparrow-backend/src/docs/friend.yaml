@@ -1,44 +1,4 @@
 paths:
-  /api/search-global:
-    get:
-      summary: Global user search
-      description: |
-        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
-        
-        Search for users globally by username. You must login first.
-      tags:
-        - Friend
-      security:
-        - cookieAuth: []
-        - bearerAuth: []
-      parameters:
-        - in: query
-          name: username
-          required: true
-          schema:
-            type: string
-          description: Username to search for
-      responses:
-        '200':
-          description: Search results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  users:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/UserSearchResult'
-        '500':
-          description: Server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
   /api/search-friends:
     get:
       summary: Search friends

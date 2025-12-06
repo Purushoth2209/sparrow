@@ -31,14 +31,29 @@ setInterval(() => {
  * Mobile login with username/email/phone + password
  * @param {string} identifier - Username, email, or phone number
  * @param {string} email - Email (optional, if provided separately)
- * @param {string} phoneNumber - Phone number (optional, if provided separately)
+ * @param {string} phoneNumber - Phone number (optional, for existing users only)
  * @param {string} password - User password
  * @param {string} country - Country code for phone validation
  * @returns {Promise<Object>} User data with access and refresh tokens
  */
 async function mobileLogin(identifier, email, phoneNumber, password, country) {
+  // Validate credentials presence
+  const hasValidIdentifier = identifier && typeof identifier === 'string' && identifier.trim().length > 0;
+  const hasValidEmail = email && typeof email === 'string' && email.trim().length > 0;
+  const hasValidPhone = phoneNumber && typeof phoneNumber === 'string' && phoneNumber.trim().length > 0;
+  const hasValidPassword = password && typeof password === 'string' && password.trim().length > 0;
+
+  if (!hasValidPassword || (!hasValidIdentifier && !hasValidEmail && !hasValidPhone)) {
+    throw new Error('Invalid credentials');
+  }
+
+  // Normalize inputs
+  const idRaw = typeof identifier === 'string' ? identifier.trim() : undefined;
+  const emailRaw = typeof email === 'string' ? email.trim().toLowerCase() : undefined;
+  const phoneRaw = typeof phoneNumber === 'string' ? phoneNumber.trim() : undefined;
+
   // Reuse existing login logic from auth.service
-  const user = await authService.loginUser(identifier, email, phoneNumber, password, country);
+  const user = await authService.loginUser(idRaw || emailRaw || phoneRaw, emailRaw, phoneRaw, password, country);
   
   // Generate JWT tokens
   const accessToken = jwtService.generateAccessToken({
@@ -79,6 +94,10 @@ async function mobileLogin(identifier, email, phoneNumber, password, country) {
  * @returns {Promise<Object>} New access token and optionally new refresh token
  */
 async function refreshAccessToken(refreshToken) {
+  if (!refreshToken || typeof refreshToken !== 'string') {
+    throw new Error('Refresh token is required');
+  }
+
   // Verify refresh token
   const decoded = jwtService.verifyRefreshToken(refreshToken);
   
@@ -113,7 +132,7 @@ async function refreshAccessToken(refreshToken) {
  * @returns {Promise<void>}
  */
 async function mobileLogout(refreshToken) {
-  if (!refreshToken) {
+  if (!refreshToken || typeof refreshToken !== 'string') {
     throw new Error('Refresh token is required');
   }
   
@@ -160,6 +179,10 @@ async function getGoogleAuthUrl() {
  * @returns {Promise<Object>} User data with access and refresh tokens
  */
 async function handleGoogleCallback(code, state) {
+  if (!code || !state) {
+    throw new Error('Missing required parameters (code, state)');
+  }
+
   const client = await getGoogleClient();
   
   // Retrieve nonce from cache using state

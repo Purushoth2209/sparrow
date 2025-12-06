@@ -6,22 +6,6 @@ const { sendNotificationToUser } = require('../socket');
  * Handles HTTP request/response for friends and friend requests
  */
 
-exports.searchGlobal = async (req, res) => {
-  try {
-    const { username } = req.query;
-    const currentUserId = req.user.profileId;
-
-    const users = await friendService.searchGlobalUsers(username, currentUserId);
-    res.json({ success: true, users });
-  } catch (error) {
-    console.error('❌ Global search error:', error);
-    res.status(500).json({ 
-      success: false, 
-      message: error.message || 'Server error while searching users' 
-    });
-  }
-};
-
 exports.searchFriends = async (req, res) => {
   try {
     const { username } = req.query;
@@ -79,7 +63,7 @@ exports.getFriendRequests = async (req, res) => {
     const friendRequests = await friendService.getFriendRequests(currentUserId);
     res.json({ success: true, friendRequests });
   } catch (error) {
-    console.error('❌ Get friend requests error:', error);
+    console.error('Get friend requests error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Server error while fetching friend requests' 

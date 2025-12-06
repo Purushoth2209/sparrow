@@ -21,6 +21,28 @@ router.get('/:friendId', ensureAuthenticated, async (req, res) => {
       return res.status(403).json({ error: 'Cannot access messages with non-friend user' });
     }
 
+    // Check blocking status
+    const targetUser = await userRepository.findUserByProfileId(friendId);
+    if (!targetUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if current user has blocked target user
+    const currentUserBlockedTarget = currentUser.blockedUsers?.some(
+      blocked => blocked.profileId === friendId
+    );
+    if (currentUserBlockedTarget) {
+      return res.status(403).json({ error: 'Cannot access messages with blocked user' });
+    }
+
+    // Check if target user has blocked current user
+    const targetUserBlockedCurrent = targetUser.blockedUsers?.some(
+      blocked => blocked.profileId === currentUserId
+    );
+    if (targetUserBlockedCurrent) {
+      return res.status(403).json({ error: 'Cannot access messages. You have been blocked by this user' });
+    }
+
     // Get and decrypt messages between users
     const messages = await getDecryptedMessages(currentUserId, friendId);
 

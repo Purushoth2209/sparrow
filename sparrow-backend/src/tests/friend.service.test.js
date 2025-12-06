@@ -11,54 +11,6 @@ describe('Friend Service', () => {
     jest.clearAllMocks();
   });
 
-  describe('searchGlobalUsers', () => {
-    it('should search users by username', async () => {
-      const mockCurrentUser = {
-        profileId: 'user-123',
-        friends: ['user-456'],
-        friendRequests: []
-      };
-
-      const mockUsers = [
-        {
-          profileId: 'user-456',
-          username: 'frienduser',
-          profileImage: 'image.jpg',
-          friendRequests: []
-        },
-        {
-          profileId: 'user-789',
-          username: 'newuser',
-          profileImage: 'image2.jpg',
-          friendRequests: []
-        }
-      ];
-
-      userRepository.findUserByProfileId.mockResolvedValue(mockCurrentUser);
-      userRepository.searchUsersByUsername.mockResolvedValue(mockUsers);
-
-      const result = await friendService.searchGlobalUsers('user', 'user-123');
-
-      expect(result.length).toBe(2);
-      expect(result[0].status).toBe('already_friends');
-      expect(result[1].status).toBe('send_request');
-    });
-
-    it('should throw error if username too short', async () => {
-      await expect(friendService.searchGlobalUsers('a', 'user-123')).rejects.toThrow(
-        'Username must be at least 2 characters long'
-      );
-    });
-
-    it('should throw error if current user not found', async () => {
-      userRepository.findUserByProfileId.mockResolvedValue(null);
-
-      await expect(friendService.searchGlobalUsers('user', 'invalid-id')).rejects.toThrow(
-        'Current user not found'
-      );
-    });
-  });
-
   describe('searchFriends', () => {
     it('should search friends by username', async () => {
       const mockCurrentUser = {

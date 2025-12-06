@@ -1,11 +1,12 @@
 /**
  * Identifier Service
- * Handles parsing and normalization of email, phone, and identifier fields
+ * Handles parsing and normalization of email and identifier fields
+ * Phone number support removed - only email and username supported
  */
 
 /**
- * Parse and normalize identifier, email, and phone from request body
- * @param {Object} body - Request body containing identifier, email, phoneNumber
+ * Parse and normalize identifier and email from request body
+ * @param {Object} body - Request body containing identifier, email
  * @returns {Object} Normalized identifier values
  */
 function parseIdentifier(body) {
@@ -16,22 +17,22 @@ function parseIdentifier(body) {
   const phoneRaw = typeof phoneNumber === 'string' ? phoneNumber.trim() : undefined;
   
   let emailNormalized = emailRaw;
-  let phoneNormalized = phoneRaw;
+  let phoneNormalized = phoneRaw; // Kept for backward compatibility with existing users only
   
-  // If identifier is provided and no email/phone, try to parse it
-  if (!emailNormalized && !phoneNormalized && idRaw) {
+  // If identifier is provided and no email, try to parse it
+  // Can be email or username (phone removed from new registrations)
+  if (!emailNormalized && idRaw) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (emailRegex.test(idRaw.toLowerCase())) {
       emailNormalized = idRaw.toLowerCase();
-    } else {
-      phoneNormalized = idRaw;
     }
+    // If not email, treat as username (phone removed)
   }
   
   return {
     identifierValue: idRaw || emailRaw || phoneRaw,
     emailNormalized,
-    phoneNormalized,
+    phoneNormalized, // Only for existing users who registered with phone
     emailRaw,
     phoneRaw
   };
@@ -47,7 +48,7 @@ function validateLoginCredentials(body) {
   
   const hasValidIdentifier = identifier && typeof identifier === 'string' && identifier.trim().length > 0;
   const hasValidEmail = email && typeof email === 'string' && email.trim().length > 0;
-  const hasValidPhone = phoneNumber && typeof phoneNumber === 'string' && phoneNumber.trim().length > 0;
+  const hasValidPhone = phoneNumber && typeof phoneNumber === 'string' && phoneNumber.trim().length > 0; // For existing users only
   const hasValidPassword = password && typeof password === 'string' && password.trim().length > 0;
   
   const isValid = hasValidPassword && (hasValidIdentifier || hasValidEmail || hasValidPhone);
@@ -56,7 +57,7 @@ function validateLoginCredentials(body) {
     isValid,
     hasValidIdentifier,
     hasValidEmail,
-    hasValidPhone,
+    hasValidPhone, // For existing users only
     hasValidPassword
   };
 }

@@ -73,27 +73,5 @@ describe('User Repository', () => {
     });
   });
 
-  describe('searchUsersByUsername', () => {
-    it('should search users by username', async () => {
-      const mockUsers = [
-        { username: 'testuser1', profileId: 'user-1' },
-        { username: 'testuser2', profileId: 'user-2' }
-      ];
-
-      const mockQuery = {
-        select: jest.fn().mockReturnThis(),
-        limit: jest.fn().mockResolvedValue(mockUsers)
-      };
-
-      User.find.mockReturnValue(mockQuery);
-
-      const result = await userRepository.searchUsersByUsername('test', 'exclude-123', 10);
-
-      expect(User.find).toHaveBeenCalledWith({
-        username: { $regex: 'test', $options: 'i' },
-        profileId: { $ne: 'exclude-123' }
-      });
-    });
-  });
 });
 

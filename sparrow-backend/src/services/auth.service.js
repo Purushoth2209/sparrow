@@ -148,15 +148,46 @@ function validatePassword(password) {
   return { valid: true };
 }
 
+/**
+ * Register a new user with email (phone removed)
+ * @param {Object} userData - Registration data
+ * @param {string} userData.email - Email address (required)
+ * @param {string} userData.password - Password (required)
+ * @param {string} userData.username - Username (required)
+ * @param {string} userData.fullName - Full name (optional)
+ * @returns {Promise<Object>} User object
+ */
 async function registerUser(userData) {
-  const { email, phoneNumber, password, username, fullName } = userData;
+  const { email, password, username, fullName } = userData;
+  
+  // Validate required fields
+  if (!email || !password || !username) {
+    throw new Error('Username, password, and email are required');
+  }
+
+  // Normalize email
+  const emailNormalized = typeof email === 'string' ? email.trim().toLowerCase() : undefined;
+  if (!emailNormalized) {
+    throw new Error('Valid email is required');
+  }
+
+  // Validate email format
+  const emailValidation = await validateEmail(emailNormalized);
+  if (!emailValidation.valid) {
+    throw new Error(emailValidation.message);
+  }
+
+  // Validate password
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.valid) {
+    throw new Error(passwordValidation.message);
+  }
   
   // Check for conflicts
-  const conflict = await userRepository.findUserByEmailOrPhoneOrUsername(email, phoneNumber, username);
+  const conflict = await userRepository.findUserByEmailOrPhoneOrUsername(emailNormalized, null, username);
   if (conflict) {
-    const isEmail = email && conflict.email === email;
-    const isPhone = phoneNumber && conflict.phoneNumber === phoneNumber;
-    const which = isEmail ? 'email' : isPhone ? 'phone number' : 'username';
+    const isEmail = emailNormalized && conflict.email === emailNormalized;
+    const which = isEmail ? 'email' : 'username';
     throw new Error(`User with this ${which} already exists`);
   }
   
@@ -165,8 +196,8 @@ async function registerUser(userData) {
   
   const user = await userRepository.createUser({
     fullName: typeof fullName === 'string' ? fullName.trim() : '',
-    email,
-    phoneNumber,
+    email: emailNormalized,
+    phoneNumber: null, // Phone removed from registration
     password: hashedPassword,
     profileId,
     username,
@@ -183,33 +214,57 @@ async function registerUser(userData) {
   };
 }
 
+/**
+ * Login user with email/username (phone removed from registration, but kept for existing users)
+ * @param {string} identifier - Username, email, or phone (for existing users)
+ * @param {string} email - Email address (optional)
+ * @param {string} phoneNumber - Phone number (optional, for existing users only)
+ * @param {string} password - User password
+ * @param {string} country - Country code (optional, for phone validation)
+ * @returns {Promise<Object>} User object with passwordWarning
+ */
 async function loginUser(identifier, email, phoneNumber, password, country) {
+  // Validate credentials presence
+  if (!password) {
+    throw new Error('Invalid credentials');
+  }
+
+  // Normalize inputs
+  const idRaw = typeof identifier === 'string' ? identifier.trim() : undefined;
+  const emailRaw = typeof email === 'string' ? email.trim().toLowerCase() : undefined;
+  const phoneRaw = typeof phoneNumber === 'string' ? phoneNumber.trim() : undefined;
+
+  // Determine which field to use for login
   let query = null;
   
-  if (email) {
+  if (emailRaw) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(emailRaw)) {
       throw new Error('Invalid credentials');
     }
-    query = { email: email.toLowerCase() };
-  } else if (phoneNumber) {
-    const phoneValidation = await validatePhoneNumber(phoneNumber, country);
+    query = { email: emailRaw };
+  } else if (phoneRaw) {
+    // Phone login still supported for existing users only
+    const phoneValidation = await validatePhoneNumber(phoneRaw, country);
     if (!phoneValidation.valid) {
       throw new Error('Invalid credentials');
     }
     query = { phoneNumber: phoneValidation.normalized };
-  } else if (identifier) {
+  } else if (idRaw) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (emailRegex.test(identifier.toLowerCase())) {
-      query = { email: identifier.toLowerCase() };
+    if (emailRegex.test(idRaw.toLowerCase())) {
+      query = { email: idRaw.toLowerCase() };
     } else {
-      const phoneValidation = await validatePhoneNumber(identifier, country);
+      // Try phone for existing users, otherwise treat as username
+      const phoneValidation = await validatePhoneNumber(idRaw, country);
       if (phoneValidation.valid) {
         query = { phoneNumber: phoneValidation.normalized };
       } else {
-        query = { username: identifier };
+        query = { username: idRaw };
       }
     }
+  } else {
+    throw new Error('Invalid credentials');
   }
   
   const user = await authRepository.findUserForLogin(query);
@@ -264,7 +319,21 @@ async function loginUser(identifier, email, phoneNumber, password, country) {
   };
 }
 
+/**
+ * Set username for user
+ * @param {string} profileId - User profile ID
+ * @param {string} username - Username to set
+ * @returns {Promise<Object>} Updated user object
+ */
 async function setUsername(profileId, username) {
+  if (!profileId) {
+    throw new Error('User not authenticated');
+  }
+
+  if (!username || typeof username !== 'string' || username.trim().length < 3) {
+    throw new Error('Username must be at least 3 characters long');
+  }
+
   const trimmedUsername = username.trim();
   
   const existingUser = await userRepository.findUserByUsername(trimmedUsername);
@@ -291,6 +360,18 @@ async function setUsername(profileId, username) {
   };
 }
 
+/**
+ * Logout user - disconnect socket
+ * @param {string} profileId - User profile ID
+ * @param {Function} disconnectSocket - Function to disconnect socket (injected dependency)
+ * @returns {Promise<void>}
+ */
+async function logoutUser(profileId, disconnectSocket) {
+  if (profileId && disconnectSocket) {
+    disconnectSocket(profileId);
+  }
+}
+
 module.exports = {
   checkUsernameAvailability,
   validateEmail,
@@ -299,6 +380,7 @@ module.exports = {
   registerUser,
   loginUser,
   setUsername,
+  logoutUser,
   generateUsernameSuggestions,
   generateUniqueUsernameForGoogle
 };

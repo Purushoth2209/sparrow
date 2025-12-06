@@ -1,5 +1,4 @@
 const authService = require('../services/auth.service');
-const identifierService = require('../services/identifier.service');
 const sessionService = require('../services/session.service');
 const { userSockets, io: getIO } = require('../socket');
 const { errorResponse } = require('../utils/response');
@@ -28,62 +27,26 @@ exports.checkUsername = async (req, res) => {
  */
 exports.registerUser = async (req, res) => {
   try {
-    const { password, username, fullName, country } = req.body;
+    const { password, username, fullName, email } = req.body;
     
-    // Parse and normalize identifiers
-    const { emailNormalized, phoneNormalized } = identifierService.parseIdentifier(req.body);
-
-    // Validate required fields
-    if ((!emailNormalized && !phoneNormalized) || !password || !username) {
-      return errorResponse(res, 'Username, password, and an email or phone number are required', 400);
-    }
-
-    // Validate password
-    const passwordValidation = authService.validatePassword(password);
-    if (!passwordValidation.valid) {
-      return errorResponse(res, passwordValidation.message, 400);
-    }
-
-    // Validate email if provided
-    if (emailNormalized) {
-      const emailValidation = await authService.validateEmail(emailNormalized);
-      if (!emailValidation.valid) {
-        return errorResponse(res, emailValidation.message, 400);
-      }
-    }
-
-    // Validate phone if provided
-    let finalPhoneNumber = phoneNormalized;
-    if (phoneNormalized) {
-      const phoneValidation = await authService.validatePhoneNumber(phoneNormalized, country);
-      if (!phoneValidation.valid) {
-        return errorResponse(res, phoneValidation.message, 400);
-      }
-      finalPhoneNumber = phoneValidation.normalized;
-    }
-
-    // Register user
+    // Register user - all validation and logic in service
     const user = await authService.registerUser({
-      email: emailNormalized,
-      phoneNumber: finalPhoneNumber,
+      email,
       password,
       username,
       fullName
     });
 
     // Persist session
-    try {
-      await sessionService.saveSession(req, user);
-      return res.status(201).json({
-        success: true,
-        user: req.session.user,
-        message: 'Registration successful'
-      });
-    } catch (sessionError) {
-      return errorResponse(res, 'Session save failed', 500);
-    }
+    await sessionService.saveSession(req, user);
+    return res.status(201).json({
+      success: true,
+      user: req.session.user,
+      message: 'Registration successful'
+    });
   } catch (error) {
-    return errorResponse(res, error.message || 'Server error', 500);
+    const statusCode = error.message.includes('required') || error.message.includes('Invalid') || error.message.includes('already exists') ? 400 : 500;
+    return errorResponse(res, error.message || 'Server error', statusCode);
   }
 };
 
@@ -92,35 +55,21 @@ exports.registerUser = async (req, res) => {
  */
 exports.loginUser = async (req, res) => {
   try {
-    const { country } = req.body;
+    const { identifier, email, phoneNumber, password, country } = req.body;
 
-    // Validate credentials presence
-    const validation = identifierService.validateLoginCredentials(req.body);
-    if (!validation.isValid) {
-      return errorResponse(res, 'Invalid credentials', 400);
-    }
-
-    // Parse identifiers
-    const { identifierValue, emailRaw, phoneRaw } = identifierService.parseIdentifier(req.body);
-    const { password } = req.body;
-
-    // Attempt login
-    const user = await authService.loginUser(identifierValue, emailRaw, phoneRaw, password, country);
+    // All validation and logic in service
+    const user = await authService.loginUser(identifier, email, phoneNumber, password, country);
 
     // Persist session and set cookie
-    try {
-      await sessionService.saveSession(req, user);
-      sessionService.setSessionCookies(res, req.sessionID);
+    await sessionService.saveSession(req, user);
+    sessionService.setSessionCookies(res, req.sessionID);
 
-      return res.status(200).json({
-        success: true,
-        user: req.session.user,
-        message: 'Login successful',
-        passwordWarning: user.passwordWarning
-      });
-    } catch (sessionError) {
-      return errorResponse(res, 'Session save failed', 500);
-    }
+    return res.status(200).json({
+      success: true,
+      user: req.session.user,
+      message: 'Login successful',
+      passwordWarning: user.passwordWarning
+    });
   } catch (error) {
     // Handle account lockout (423 status)
     if (error.message && error.message.includes('locked')) {
@@ -138,7 +87,8 @@ exports.logoutUser = async (req, res) => {
     const profileId = req.session?.user?.profileId || req.body?.profileId;
 
     // Disconnect socket if connected
-    if (profileId) {
+    const disconnectSocket = (profileId) => {
+      if (!profileId) return;
       const socketId = userSockets.get(profileId);
       if (socketId) {
         const socketIO = getIO();
@@ -150,29 +100,23 @@ exports.logoutUser = async (req, res) => {
         }
         userSockets.delete(profileId);
       }
-    }
+    };
+
+    // All logic in service
+    await authService.logoutUser(profileId, disconnectSocket);
 
     // Destroy session if exists
     if (req.session) {
-      try {
-        await sessionService.destroySession(req);
-        sessionService.clearSessionCookies(res);
-        return res.status(200).json({
-          success: true,
-          message: 'Logout successful'
-        });
-      } catch (destroyError) {
-        return errorResponse(res, 'Logout failed', 500);
-      }
-    } else {
-      sessionService.clearSessionCookies(res);
-      return res.status(200).json({
-        success: true,
-        message: 'Logout successful'
-      });
+      await sessionService.destroySession(req);
     }
+    sessionService.clearSessionCookies(res);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Logout successful'
+    });
   } catch (error) {
-    return errorResponse(res, 'Server error', 500);
+    return errorResponse(res, error.message || 'Server error', 500);
   }
 };
 
@@ -184,14 +128,7 @@ exports.setUsername = async (req, res) => {
     const { username } = req.body;
     const profileId = req.session?.user?.profileId;
 
-    if (!profileId) {
-      return errorResponse(res, 'User not authenticated', 401);
-    }
-
-    if (!username || typeof username !== 'string' || username.trim().length < 3) {
-      return errorResponse(res, 'Username must be at least 3 characters long', 400);
-    }
-
+    // All validation and logic in service
     const user = await authService.setUsername(profileId, username);
     req.session.user.username = user.username;
 
@@ -201,7 +138,9 @@ exports.setUsername = async (req, res) => {
       user: req.session.user
     });
   } catch (error) {
-    return errorResponse(res, error.message || 'Server error', 500);
+    const statusCode = error.message.includes('not authenticated') ? 401 : 
+                      error.message.includes('must be') || error.message.includes('already taken') ? 400 : 500;
+    return errorResponse(res, error.message || 'Server error', statusCode);
   }
 };
 

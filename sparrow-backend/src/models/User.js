@@ -58,6 +58,19 @@ const userSchema = new mongoose.Schema({
     default: null,
   },
   profileImage: { type: String, default: '' },
+  about: {
+    type: String,
+    required: false,
+    trim: true,
+    default: '',
+    maxlength: 500
+  },
+  blockedUsers: [
+    {
+      profileId: { type: String, required: true },
+      blockedAt: { type: Date, default: Date.now }
+    }
+  ],
   accountCreationDate: { type: Date, default: Date.now },
   // Security fields for account lockout
   loginAttempts: { type: Number, default: 0 },

@@ -15,6 +15,41 @@ const encryptionService = new OptimizedKMSEnvelopeEncryption({
  * Contains business logic for messages
  */
 
+/**
+ * Check if users are blocked (bidirectional check)
+ * @param {string} userId1 - First user's profileId
+ * @param {string} userId2 - Second user's profileId
+ * @returns {Promise<{isBlocked: boolean, message: string}>}
+ */
+async function checkBlockingStatus(userId1, userId2) {
+  const user1 = await userRepository.findUserByProfileId(userId1);
+  const user2 = await userRepository.findUserByProfileId(userId2);
+
+  if (!user1 || !user2) {
+    throw new Error('User not found');
+  }
+
+  // Check if user1 has blocked user2
+  const user1BlockedUser2 = user1.blockedUsers?.some(
+    blocked => blocked.profileId === userId2
+  );
+
+  // Check if user2 has blocked user1
+  const user2BlockedUser1 = user2.blockedUsers?.some(
+    blocked => blocked.profileId === userId1
+  );
+
+  if (user1BlockedUser2) {
+    return { isBlocked: true, message: 'Cannot send message to blocked user' };
+  }
+
+  if (user2BlockedUser1) {
+    return { isBlocked: true, message: 'Cannot send message. You have been blocked by this user' };
+  }
+
+  return { isBlocked: false, message: null };
+}
+
 async function sendMessage(senderId, receiverId, content) {
   // Validate friendship before sending message
   const sender = await userRepository.findUserByProfileId(senderId);
@@ -24,6 +59,12 @@ async function sendMessage(senderId, receiverId, content) {
 
   if (!sender.friends.includes(receiverId)) {
     throw new Error('Cannot send message to non-friend user');
+  }
+
+  // Check if users are blocked
+  const blockingStatus = await checkBlockingStatus(senderId, receiverId);
+  if (blockingStatus.isBlocked) {
+    throw new Error(blockingStatus.message);
   }
 
   // Create session ID for DEK caching (based on sender-receiver pair)
@@ -92,6 +133,14 @@ async function decryptSingleMessage(message) {
 }
 
 async function getDecryptedMessages(userId, friendId = null) {
+  // If friendId is provided, check blocking status before retrieving messages
+  if (friendId) {
+    const blockingStatus = await checkBlockingStatus(userId, friendId);
+    if (blockingStatus.isBlocked) {
+      throw new Error(blockingStatus.message);
+    }
+  }
+
   const messages = await messageRepository.findMessagesByUsers(userId, friendId);
 
   const decryptedMessages = await Promise.all(
@@ -154,6 +203,12 @@ async function sendBatchMessages(messages) {
         throw new Error(`Cannot send message to non-friend user ${msg.receiverId}`);
       }
 
+      // Check if users are blocked
+      const blockingStatus = await checkBlockingStatus(msg.senderId, msg.receiverId);
+      if (blockingStatus.isBlocked) {
+        throw new Error(blockingStatus.message);
+      }
+
       const message = await messageRepository.createMessage({
         senderId: msg.senderId,
         receiverId: msg.receiverId,
@@ -187,6 +242,12 @@ async function updateMessageStatus(messageId, status) {
 }
 
 async function markMessagesAsRead(senderId, receiverId) {
+  // Check if users are blocked before marking messages as read
+  const blockingStatus = await checkBlockingStatus(senderId, receiverId);
+  if (blockingStatus.isBlocked) {
+    throw new Error(blockingStatus.message);
+  }
+
   return await messageRepository.updateMessagesStatus(
     { 
       senderId: senderId, 

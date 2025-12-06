@@ -5,7 +5,8 @@ paths:
       description: |
         **🌐 Public Route** - No authentication required
         
-        Register a new user with email/phone, password, and username (web session-based)
+        Register a new user with email, password, and username (web session-based).
+        Phone number registration has been removed. Users can register with email or via Google OAuth.
       tags:
         - Auth
       requestBody:
@@ -17,14 +18,13 @@ paths:
               required:
                 - password
                 - username
+                - email
               properties:
                 email:
                   type: string
                   format: email
+                  description: Email address (required)
                   example: "user@example.com"
-                phoneNumber:
-                  type: string
-                  example: "+1234567890"
                 password:
                   type: string
                   minLength: 8
@@ -36,9 +36,6 @@ paths:
                 fullName:
                   type: string
                   example: "John Doe"
-                country:
-                  type: string
-                  example: "US"
       responses:
         '201':
           description: User registered successfully

@@ -15,23 +15,11 @@ exports.mobileLogin = async (req, res) => {
   try {
     const { identifier, email, phoneNumber, password, country } = req.body;
 
-    const hasValidIdentifier = identifier && identifier.trim().length > 0;
-    const hasValidEmail = email && email.trim().length > 0;
-    const hasValidPhone = phoneNumber && phoneNumber.trim().length > 0;
-    const hasValidPassword = password && password.trim().length > 0;
-
-    if (!hasValidPassword || (!hasValidIdentifier && !hasValidEmail && !hasValidPhone)) {
-      return errorResponse(res, 'Invalid credentials', 400);
-    }
-
-    const idRaw = typeof identifier === 'string' ? identifier.trim() : undefined;
-    const emailRaw = typeof email === 'string' ? email.trim().toLowerCase() : undefined;
-    const phoneRaw = typeof phoneNumber === 'string' ? phoneNumber.trim() : undefined;
-
+    // All validation and logic in service
     const result = await mobileAuthService.mobileLogin(
-      idRaw || emailRaw || phoneRaw,
-      emailRaw,
-      phoneRaw,
+      identifier,
+      email,
+      phoneNumber,
       password,
       country
     );
@@ -40,15 +28,14 @@ exports.mobileLogin = async (req, res) => {
   } catch (error) {
     console.error('❌ Mobile login error:', error);
     
+    let statusCode = 500;
     if (error.message.includes('locked')) {
-      return errorResponse(res, error.message, 423);
+      statusCode = 423;
+    } else if (error.message.includes('Invalid credentials') || error.message.includes('attempt')) {
+      statusCode = 400;
     }
     
-    if (error.message.includes('Invalid credentials') || error.message.includes('attempt')) {
-      return errorResponse(res, error.message, 400);
-    }
-    
-    return errorResponse(res, error.message || 'Server error', 500);
+    return errorResponse(res, error.message || 'Server error', statusCode);
   }
 };
 
@@ -60,21 +47,15 @@ exports.refreshToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
 
-    if (!refreshToken || typeof refreshToken !== 'string') {
-      return errorResponse(res, 'Refresh token is required', 400);
-    }
-
+    // All validation and logic in service
     const result = await mobileAuthService.refreshAccessToken(refreshToken);
 
     return successResponse(res, result, 'Token refreshed successfully', 200);
   } catch (error) {
     console.error('❌ Token refresh error:', error);
     
-    if (error.message.includes('expired') || error.message.includes('Invalid')) {
-      return errorResponse(res, error.message, 401);
-    }
-    
-    return errorResponse(res, error.message || 'Server error', 500);
+    const statusCode = error.message.includes('expired') || error.message.includes('Invalid') ? 401 : 500;
+    return errorResponse(res, error.message || 'Server error', statusCode);
   }
 };
 
@@ -87,21 +68,15 @@ exports.mobileLogout = async (req, res) => {
   try {
     const { refreshToken } = req.body;
 
-    if (!refreshToken || typeof refreshToken !== 'string') {
-      return errorResponse(res, 'Refresh token is required', 400);
-    }
-
+    // All validation and logic in service
     await mobileAuthService.mobileLogout(refreshToken);
 
     return successResponse(res, null, 'Logout successful', 200);
   } catch (error) {
     console.error('❌ Mobile logout error:', error);
     
-    if (error.message.includes('expired') || error.message.includes('Invalid')) {
-      return errorResponse(res, error.message, 401);
-    }
-    
-    return errorResponse(res, error.message || 'Server error', 500);
+    const statusCode = error.message.includes('expired') || error.message.includes('Invalid') ? 401 : 500;
+    return errorResponse(res, error.message || 'Server error', statusCode);
   }
 };
 
@@ -127,21 +102,15 @@ exports.googleCallback = async (req, res) => {
   try {
     const { code, state } = req.query;
 
-    if (!code || !state) {
-      return errorResponse(res, 'Missing required parameters (code, state)', 400);
-    }
-
+    // All validation and logic in service
     const result = await mobileAuthService.handleGoogleCallback(code, state);
 
     return successResponse(res, result, 'Google authentication successful', 200);
   } catch (error) {
     console.error('❌ Google callback error:', error);
     
-    if (error.message.includes('Invalid state') || error.message.includes('Invalid') || error.message.includes('expired')) {
-      return errorResponse(res, error.message, 400);
-    }
-    
-    return errorResponse(res, error.message || 'Server error', 500);
+    const statusCode = error.message.includes('Invalid state') || error.message.includes('Invalid') || error.message.includes('expired') ? 400 : 500;
+    return errorResponse(res, error.message || 'Server error', statusCode);
   }
 };
 

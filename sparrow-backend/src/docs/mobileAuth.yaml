@@ -7,9 +7,11 @@ paths:
         
         Authenticate user with username/email/phone and password (JWT-based).
         
+        **Note:** Phone registration has been removed. Phone login is still supported for existing users who registered with phone numbers.
+        
         **You only need ONE identifier method:**
         - Use `email` + `password` (for email login)
-        - Use `phoneNumber` + `password` (for phone login)
+        - Use `phoneNumber` + `password` (for phone login - existing users only)
         - Use `identifier` + `password` (for username/email/phone login)
         
         Returns JWT access and refresh tokens for mobile apps.

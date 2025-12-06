@@ -11,16 +11,6 @@ const ensureAuthenticated = require('../middlewares/ensureAuthenticated');
 const friendController = require('../controllers/friend.controller');
 
 /**
- * Global Search Users by Username
- * 
- * @route   GET /api/search-global
- * @access  Private
- * @param   {string} username - Username to search for (query parameter)
- * @returns {Object} Array of matching users with friendship/request status
- */
-router.get('/search-global', ensureAuthenticated, friendController.searchGlobal);
-
-/**
  * Search Friends by Username
  * 
  * @route   GET /api/search-friends
