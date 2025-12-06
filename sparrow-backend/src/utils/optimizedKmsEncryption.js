@@ -1,5 +1,6 @@
 const AWS = require('aws-sdk');
 const crypto = require('crypto');
+const kmsConfig = require('../config/kms');
 
 /**
  * Optimized AWS KMS Envelope Encryption Module for Messaging App
@@ -19,13 +20,15 @@ const crypto = require('crypto');
 
 class OptimizedKMSEnvelopeEncryption {
   constructor(options = {}) {
-    // Initialize AWS KMS client
+    // Initialize AWS KMS client using config
     this.kms = new AWS.KMS({
-      region: process.env.AWS_REGION || 'us-east-1'
+      region: kmsConfig.region
+      // No explicit credentials - uses default credential provider chain
     });
     
     // KMS key alias for the Key Encryption Key (KEK)
-    this.kekAlias = 'alias/sparrow-kek';
+    // Use keyId from config if provided, otherwise use default alias
+    this.kekAlias = kmsConfig.keyId || 'alias/sparrow-kek';
     
     // Encryption algorithm for message content
     this.encryptionAlgorithm = 'aes-256-gcm';
