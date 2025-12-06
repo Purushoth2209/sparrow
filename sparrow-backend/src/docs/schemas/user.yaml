@@ -28,8 +28,27 @@ components:
           example: "John Doe"
         profileImage:
           type: string
-          description: Profile image URL
+          format: uri
+          description: Profile image URL (S3 URL or external URL)
           nullable: true
+        about:
+          type: string
+          description: About/bio text (max 500 characters)
+          example: "Software developer and tech enthusiast"
+          nullable: true
+        blockedUsers:
+          type: array
+          items:
+            type: object
+            properties:
+              profileId:
+                type: string
+                description: Profile ID of blocked user
+              blockedAt:
+                type: string
+                format: date-time
+                description: Timestamp when user was blocked
+          description: Array of blocked users
         isOnline:
           type: boolean
           description: Online status

@@ -1,15 +1,21 @@
 paths:
-  /api/user:
+  /api/user/me:
     get:
-      summary: Get current user profile
+      summary: Get current user's full profile
       description: |
         **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
         
-        Returns the authenticated user's profile information.
+        Returns the authenticated user's complete profile information including sensitive fields like email and phone number.
         
-        **How to authenticate:**
-        - For web: Login via `POST /api/auth/login` first (session cookie is automatically sent)
-        - For mobile: Login via `POST /api/auth/mobile/login`, then use "Authorize" button with JWT token
+        **Use Cases:**
+        - Display user's own profile in settings page
+        - Show complete user information for profile editing
+        - Get user's own profile data for personalization
+        
+        **Response includes:**
+        - Full profile details (username, fullName, about, email, phoneNumber, profileImage)
+        - All fields visible to the user themselves
+      operationId: getCurrentUser
       tags:
         - User
       security:
@@ -25,27 +31,65 @@ paths:
                 properties:
                   success:
                     type: boolean
+                    example: true
                   user:
-                    $ref: '#/components/schemas/User'
+                    $ref: '#/components/schemas/UserProfile'
+              examples:
+                success:
+                  value:
+                    success: true
+                    user:
+                      profileId: "user-1234567890"
+                      username: "johndoe"
+                      fullName: "John Doe"
+                      about: "Software developer and tech enthusiast"
+                      email: "john@example.com"
+                      phoneNumber: "+1234567890"
+                      profileImage: "https://sparrow-profile-pictures.s3.ap-south-1.amazonaws.com/user-1234567890-1234567890.jpg"
         '404':
           description: User not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /api/profile:
+  /api/user/{profileId}:
     get:
-      summary: Get user profile (alternative route)
+      summary: Get another user's profile (limited)
       description: |
         **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
         
-        Alternative route for getting current user profile
+        Returns limited profile information for another user. Sensitive fields like email and phone number are excluded.
+        
+        **Privacy Features:**
+        - If the target user has blocked you, returns "User not found" (doesn't reveal they exist)
+        - If you have blocked the target user, returns "User not found"
+        - Only returns public profile fields (username, fullName, about, profileImage)
+        
+        **Use Cases:**
+        - View another user's public profile
+        - Display user information in friend lists
+        - Show user details in search results
+      operationId: getUserProfile
       tags:
         - User
       security:
         - cookieAuth: []
         - bearerAuth: []
+      parameters:
+        - in: path
+          name: profileId
+          required: true
+          schema:
+            type: string
+          description: Target user's profile ID
+          example: "user-1234567890"
       responses:
         '200':
           description: User profile retrieved successfully
@@ -56,50 +100,72 @@ paths:
                 properties:
                   success:
                     type: boolean
-                  profile:
-                    $ref: '#/components/schemas/User'
-
-  /api/session-status:
-    get:
-      summary: Debug session status
-      description: |
-        **🌐 Public Route** - No authentication required
-        
-        Check session status for debugging. Useful for troubleshooting authentication issues.
-      tags:
-        - User
-      responses:
-        '200':
-          description: Session status information
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  hasSession:
-                    type: boolean
-                  sessionId:
-                    type: string
-                  hasUser:
-                    type: boolean
+                    example: true
                   user:
-                    type: object
-                    nullable: true
+                    $ref: '#/components/schemas/PublicUserProfile'
+              examples:
+                success:
+                  value:
+                    success: true
+                    user:
+                      profileId: "user-1234567890"
+                      username: "johndoe"
+                      fullName: "John Doe"
+                      about: "Software developer and tech enthusiast"
+                      profileImage: "https://sparrow-profile-pictures.s3.ap-south-1.amazonaws.com/user-1234567890-1234567890.jpg"
+        '404':
+          description: User not found (may be blocked or doesn't exist)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
-  /api/online-status:
+  /api/user/search:
     get:
-      summary: Debug online status
+      summary: Search users globally
       description: |
-        **🌐 Public Route** - No authentication required
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
         
-        Check online status for debugging. Shows which users are currently online.
+        Search for users globally by username or full name. Results exclude:
+        - Users you have blocked
+        - Users who have blocked you
+        - Yourself
+        
+        **Search Behavior:**
+        - Minimum query length: 2 characters
+        - Searches both username and fullName fields
+        - Case-insensitive search
+        - Returns up to 50 results
+        - Results are limited to public profile fields
+        
+        **Use Cases:**
+        - Find users to send friend requests
+        - Discover new users on the platform
+        - Search for specific users by name or username
+      operationId: searchUsers
       tags:
         - User
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+          description: Search query (minimum 2 characters)
+          example: "john"
       responses:
         '200':
-          description: Online status information
+          description: Search results
           content:
             application/json:
               schema:
@@ -107,26 +173,38 @@ paths:
                 properties:
                   success:
                     type: boolean
-                  onlineUsers:
+                    example: true
+                  users:
                     type: array
                     items:
-                      type: object
-                      properties:
-                        profileId:
-                          type: string
-                        username:
-                          type: string
-                        isOnline:
-                          type: boolean
-                        lastSeen:
-                          type: string
-                          format: date-time
-                  connectedSockets:
-                    type: array
-                    items:
-                      type: string
-                  socketCount:
-                    type: number
+                      $ref: '#/components/schemas/PublicUserProfile'
+              examples:
+                success:
+                  value:
+                    success: true
+                    users:
+                      - profileId: "user-1234567890"
+                        username: "johndoe"
+                        fullName: "John Doe"
+                        about: "Software developer"
+                        profileImage: "https://sparrow-profile-pictures.s3.ap-south-1.amazonaws.com/user-1234567890-1234567890.jpg"
+                      - profileId: "user-0987654321"
+                        username: "johnsmith"
+                        fullName: "John Smith"
+                        about: "Designer and artist"
+                        profileImage: ""
+        '400':
+          description: Invalid query (too short)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           description: Server error
           content:
@@ -134,3 +212,722 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/user/update:
+    patch:
+      summary: Update user profile
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Update your profile information. You can update username, fullName, and about fields.
+        
+        **Validation Rules:**
+        - **Username**: 3-30 characters, alphanumeric + underscore only, must be unique
+        - **Full Name**: Maximum 100 characters
+        - **About**: Maximum 500 characters
+        
+        **Notes:**
+        - At least one field must be provided
+        - Username changes require uniqueness check
+        - All fields are optional - only provided fields will be updated
+      operationId: updateUser
+      tags:
+        - User
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 30
+                  pattern: '^[a-zA-Z0-9_]+$'
+                  description: New username (3-30 chars, alphanumeric + underscore)
+                  example: "johndoe123"
+                fullName:
+                  type: string
+                  maxLength: 100
+                  description: New full name (max 100 characters)
+                  example: "John Doe"
+                about:
+                  type: string
+                  maxLength: 500
+                  description: About text (max 500 characters)
+                  example: "Software developer and tech enthusiast. Love coding and building amazing products."
+              example:
+                username: "johndoe123"
+                fullName: "John Doe"
+                about: "Software developer and tech enthusiast"
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  user:
+                    $ref: '#/components/schemas/UserProfile'
+              examples:
+                success:
+                  value:
+                    success: true
+                    user:
+                      profileId: "user-1234567890"
+                      username: "johndoe123"
+                      fullName: "John Doe"
+                      about: "Software developer and tech enthusiast"
+                      profileImage: "https://sparrow-profile-pictures.s3.ap-south-1.amazonaws.com/user-1234567890-1234567890.jpg"
+        '400':
+          description: Validation error (invalid username, field too long, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                usernameTaken:
+                  value:
+                    success: false
+                    error: "Username already taken"
+                invalidUsername:
+                  value:
+                    success: false
+                    error: "Username can only contain letters, numbers, and underscores"
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/user/profile/picture:
+    put:
+      summary: Upload profile picture to S3
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Upload a profile picture file to AWS S3. The file is automatically processed and stored.
+        
+        **File Requirements:**
+        - **Accepted formats**: JPG, JPEG, PNG only
+        - **Maximum size**: 5MB
+        - **Field name**: `image` (multipart/form-data)
+        
+        **Behavior:**
+        - Old profile picture is automatically deleted from S3 (if exists)
+        - New file is uploaded with format: `{profileId}-{timestamp}.jpg`
+        - Returns the S3 URL of the uploaded image
+        - Image is publicly accessible via the returned URL
+        
+        **Use Cases:**
+        - Upload new profile picture
+        - Replace existing profile picture
+        - Set profile picture for the first time
+      operationId: updateProfilePicture
+      tags:
+        - User
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Image file (JPG, JPEG, or PNG, max 5MB)
+            encoding:
+              image:
+                contentType: image/jpeg, image/jpg, image/png
+      responses:
+        '200':
+          description: Profile picture uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Profile picture updated successfully"
+                  profileId:
+                    type: string
+                    example: "user-1234567890"
+                  profileImage:
+                    type: string
+                    format: uri
+                    example: "https://sparrow-profile-pictures.s3.ap-south-1.amazonaws.com/user-1234567890-1234567890.jpg"
+              examples:
+                success:
+                  value:
+                    success: true
+                    message: "Profile picture updated successfully"
+                    profileId: "user-1234567890"
+                    profileImage: "https://sparrow-profile-pictures.s3.ap-south-1.amazonaws.com/user-1234567890-1234567890.jpg"
+        '400':
+          description: Invalid file (wrong format, too large, or missing)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                missingFile:
+                  value:
+                    success: false
+                    error: "Image file is required. Please upload an image file."
+                invalidType:
+                  value:
+                    success: false
+                    error: "Invalid image type. Only JPG, JPEG, and PNG are allowed"
+                fileTooLarge:
+                  value:
+                    success: false
+                    error: "File size exceeds 5MB limit"
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error (S3 upload failed, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/user/profile-picture:
+    post:
+      summary: Set profile picture URL (legacy)
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        **Legacy endpoint** - Set profile picture using an external URL. 
+        
+        **Note:** For new implementations, use `PUT /api/user/profile/picture` to upload files directly to S3.
+        
+        This endpoint accepts a URL to an existing image hosted elsewhere.
+        The URL is validated and stored in the database.
+      operationId: setProfileImage
+      tags:
+        - User
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - imageUrl
+              properties:
+                imageUrl:
+                  type: string
+                  format: uri
+                  description: URL of the profile image
+                  example: "https://example.com/profile.jpg"
+      responses:
+        '200':
+          description: Profile picture URL set successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  profileId:
+                    type: string
+                    example: "user-1234567890"
+                  profileImage:
+                    type: string
+                    format: uri
+                    example: "https://example.com/profile.jpg"
+        '400':
+          description: Invalid URL format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: Delete profile picture
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Delete your profile picture. If the image is stored in S3, it will be deleted from S3 as well.
+        
+        **Behavior:**
+        - Removes profile picture from your profile
+        - Deletes the image file from S3 (if stored there)
+        - Sets profileImage to empty string
+      operationId: deleteProfileImage
+      tags:
+        - User
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile picture deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  profileId:
+                    type: string
+                    example: "user-1234567890"
+                  profileImage:
+                    type: string
+                    example: ""
+              examples:
+                success:
+                  value:
+                    success: true
+                    profileId: "user-1234567890"
+                    profileImage: ""
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/user/delete:
+    delete:
+      summary: Delete user account
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        **⚠️ DANGER: This action is irreversible!**
+        
+        Permanently delete your user account. This will:
+        - Delete your user account from the database
+        - Remove you from all friends' friend lists
+        - Delete all friend requests involving you
+        - Remove you from all blocked users lists
+        - Delete your profile picture from S3 (if exists)
+        - Destroy your session (if using web auth)
+        
+        **Use Cases:**
+        - Account deletion request
+        - GDPR compliance (right to be forgotten)
+        - User wants to permanently remove their account
+      operationId: deleteUser
+      tags:
+        - User
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User account deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "User account deleted successfully"
+              examples:
+                success:
+                  value:
+                    success: true
+                    message: "User account deleted successfully"
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/user/block/{profileId}:
+    post:
+      summary: Block a user
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Block another user. When you block a user:
+        - They cannot see your profile
+        - You cannot see their profile
+        - They are removed from your friends list (if friends)
+        - You are removed from their friends list
+        - All friend requests between you are deleted
+        - They cannot message you
+        - They cannot search for you
+        - You cannot search for them
+        
+        **Privacy:**
+        - Blocked users see "User not found" instead of your profile
+        - You see "User not found" instead of their profile
+        - This prevents revealing that blocking occurred
+        
+        **Use Cases:**
+        - Block harassing users
+        - Block unwanted contacts
+        - Privacy protection
+      operationId: blockUser
+      tags:
+        - User
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: profileId
+          required: true
+          schema:
+            type: string
+          description: Profile ID of the user to block
+          example: "user-1234567890"
+      responses:
+        '200':
+          description: User blocked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "User blocked successfully"
+                  blockedUserId:
+                    type: string
+                    example: "user-1234567890"
+              examples:
+                success:
+                  value:
+                    success: true
+                    message: "User blocked successfully"
+                    blockedUserId: "user-1234567890"
+        '400':
+          description: Invalid request (cannot block yourself, already blocked)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                selfBlock:
+                  value:
+                    success: false
+                    error: "Cannot block yourself"
+                alreadyBlocked:
+                  value:
+                    success: false
+                    error: "User is already blocked"
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/user/unblock/{profileId}:
+    post:
+      summary: Unblock a user
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Unblock a previously blocked user. This removes the block, allowing:
+        - You to see their profile again
+        - Them to see your profile again
+        - You to search for them
+        - Them to search for you
+        
+        **Note:** Unblocking does NOT automatically restore the friend relationship.
+        You would need to send a new friend request if you want to be friends again.
+      operationId: unblockUser
+      tags:
+        - User
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: profileId
+          required: true
+          schema:
+            type: string
+          description: Profile ID of the user to unblock
+          example: "user-1234567890"
+      responses:
+        '200':
+          description: User unblocked successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "User unblocked successfully"
+                  unblockedUserId:
+                    type: string
+                    example: "user-1234567890"
+              examples:
+                success:
+                  value:
+                    success: true
+                    message: "User unblocked successfully"
+                    unblockedUserId: "user-1234567890"
+        '400':
+          description: Invalid request (cannot unblock yourself, not blocked)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                selfUnblock:
+                  value:
+                    success: false
+                    error: "Cannot unblock yourself"
+                notBlocked:
+                  value:
+                    success: false
+                    error: "User is not blocked"
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/user/blocked:
+    get:
+      summary: Get list of blocked users
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Get a list of all users you have blocked. Returns their profile information along with when they were blocked.
+        
+        **Response includes:**
+        - Blocked user's profile information (username, fullName, profileImage)
+        - Block timestamp (when they were blocked)
+        
+        **Use Cases:**
+        - Display blocked users list in settings
+        - Allow users to review and manage blocked users
+        - Provide option to unblock users
+      operationId: getBlockedUsers
+      tags:
+        - User
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Blocked users list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  blockedUsers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BlockedUser'
+              examples:
+                success:
+                  value:
+                    success: true
+                    blockedUsers:
+                      - profileId: "user-1234567890"
+                        username: "blockeduser1"
+                        fullName: "Blocked User One"
+                        profileImage: "https://sparrow-profile-pictures.s3.ap-south-1.amazonaws.com/user-1234567890-1234567890.jpg"
+                        blockedAt: "2024-01-15T10:30:00.000Z"
+                      - profileId: "user-0987654321"
+                        username: "blockeduser2"
+                        fullName: "Blocked User Two"
+                        profileImage: ""
+                        blockedAt: "2024-01-20T14:45:00.000Z"
+                empty:
+                  value:
+                    success: true
+                    blockedUsers: []
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    UserProfile:
+      type: object
+      description: Complete user profile (visible only to the user themselves)
+      properties:
+        profileId:
+          type: string
+          description: Unique profile identifier
+          example: "user-1234567890"
+        username:
+          type: string
+          description: Username
+          example: "johndoe"
+        fullName:
+          type: string
+          description: Full name
+          example: "John Doe"
+        about:
+          type: string
+          description: About/bio text
+          example: "Software developer and tech enthusiast"
+        email:
+          type: string
+          format: email
+          description: Email address (only visible to user themselves)
+          example: "john@example.com"
+          nullable: true
+        phoneNumber:
+          type: string
+          description: Phone number (only visible to user themselves)
+          example: "+1234567890"
+          nullable: true
+        profileImage:
+          type: string
+          format: uri
+          description: Profile image URL
+          example: "https://sparrow-profile-pictures.s3.ap-south-1.amazonaws.com/user-1234567890-1234567890.jpg"
+          nullable: true
+
+    PublicUserProfile:
+      type: object
+      description: Public user profile (visible to other users)
+      properties:
+        profileId:
+          type: string
+          description: Unique profile identifier
+          example: "user-1234567890"
+        username:
+          type: string
+          description: Username
+          example: "johndoe"
+        fullName:
+          type: string
+          description: Full name
+          example: "John Doe"
+        about:
+          type: string
+          description: About/bio text
+          example: "Software developer and tech enthusiast"
+        profileImage:
+          type: string
+          format: uri
+          description: Profile image URL
+          example: "https://sparrow-profile-pictures.s3.ap-south-1.amazonaws.com/user-1234567890-1234567890.jpg"
+          nullable: true
+
+    BlockedUser:
+      type: object
+      description: Blocked user information
+      properties:
+        profileId:
+          type: string
+          description: Blocked user's profile ID
+          example: "user-1234567890"
+        username:
+          type: string
+          description: Blocked user's username
+          example: "blockeduser"
+        fullName:
+          type: string
+          description: Blocked user's full name
+          example: "Blocked User"
+        profileImage:
+          type: string
+          format: uri
+          description: Blocked user's profile image URL
+          example: "https://sparrow-profile-pictures.s3.ap-south-1.amazonaws.com/user-1234567890-1234567890.jpg"
+          nullable: true
+        blockedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the user was blocked
+          example: "2024-01-15T10:30:00.000Z"
