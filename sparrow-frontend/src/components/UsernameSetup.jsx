@@ -18,7 +18,7 @@ const UsernameSetup = () => {
     // Check if user is authenticated
     const checkAuth = async () => {
       try {
-        const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/user`, {
+        const response = await axios.get(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/user/me`, {
           withCredentials: true
         });
         

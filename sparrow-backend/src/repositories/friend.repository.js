@@ -1,4 +1,5 @@
 const User = require('../models/User');
+const friendRequestStates = require('../constants/friendRequestStates');
 
 /**
  * Friend Repository
@@ -32,7 +33,7 @@ const addFriendRequest = async (toUserId, fromUserId) => {
   if (user) {
     user.friendRequests.push({
       fromUserId,
-      status: 'pending',
+      status: friendRequestStates.PENDING,
       timestamp: new Date()
     });
     return await user.save();
@@ -44,7 +45,7 @@ const findFriendRequest = async (toUserId, fromUserId) => {
   const user = await User.findOne({ profileId: toUserId });
   if (user) {
     return user.friendRequests.find(
-      request => request.fromUserId === fromUserId && request.status === 'pending'
+      request => request.fromUserId === fromUserId && request.status === friendRequestStates.PENDING
     );
   }
   return null;
@@ -54,7 +55,7 @@ const updateFriendRequestStatus = async (toUserId, fromUserId, status) => {
   const user = await User.findOne({ profileId: toUserId });
   if (user) {
     const request = user.friendRequests.find(
-      req => req.fromUserId === fromUserId && req.status === 'pending'
+      req => req.fromUserId === fromUserId && req.status === friendRequestStates.PENDING
     );
     if (request) {
       request.status = status;
@@ -68,7 +69,7 @@ const removeFriendRequest = async (toUserId, fromUserId) => {
   const user = await User.findOne({ profileId: toUserId });
   if (user) {
     user.friendRequests = user.friendRequests.filter(
-      request => !(request.fromUserId === fromUserId && request.status === 'pending')
+      request => !(request.fromUserId === fromUserId && request.status === friendRequestStates.PENDING)
     );
     return await user.save();
   }
@@ -78,7 +79,7 @@ const removeFriendRequest = async (toUserId, fromUserId) => {
 const getPendingFriendRequests = async (profileId) => {
   const user = await User.findOne({ profileId });
   if (user) {
-    return user.friendRequests.filter(request => request.status === 'pending');
+    return user.friendRequests.filter(request => request.status === friendRequestStates.PENDING);
   }
   return [];
 };

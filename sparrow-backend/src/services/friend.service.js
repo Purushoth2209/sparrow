@@ -1,5 +1,6 @@
 const userRepository = require('../repositories/user.repository');
 const friendRepository = require('../repositories/friend.repository');
+const friendRequestStates = require('../constants/friendRequestStates');
 
 /**
  * Friend Service
@@ -100,7 +101,7 @@ async function acceptFriendRequest(currentUserId, fromUserId) {
     throw new Error('No pending friend request found');
   }
 
-  await friendRepository.updateFriendRequestStatus(currentUserId, fromUserId, 'accepted');
+  await friendRepository.updateFriendRequestStatus(currentUserId, fromUserId, friendRequestStates.ACCEPTED);
   await friendRepository.addFriendToUser(currentUserId, fromUserId);
   await friendRepository.addFriendToUser(fromUserId, currentUserId);
 

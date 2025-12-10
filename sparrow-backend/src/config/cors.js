@@ -1,4 +1,4 @@
-require('dotenv').config();
+// dotenv is loaded in app.js (entry point)
 
 /**
  * CORS Configuration
@@ -42,7 +42,7 @@ const corsOptions = {
         callback(null, true);
       } else {
         // In development, be more permissive for localhost
-        if (process.env.NODE_ENV === 'development' && origin.includes('localhost')) {
+        if (process.env.NODE_ENV === environment.DEVELOPMENT && origin.includes('localhost')) {
           console.log('✅ CORS allowed localhost in development:', origin);
           callback(null, true);
         } else {

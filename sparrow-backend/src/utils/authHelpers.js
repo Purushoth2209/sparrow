@@ -3,6 +3,8 @@
  * Shared helper functions for authentication controllers
  */
 
+const environment = require('../constants/environment');
+
 /**
  * Parse and normalize identifier, email, and phone from request body
  * @param {Object} body - Request body
@@ -90,8 +92,8 @@ function setSessionCookie(res, sessionID) {
   res.clearCookie('sparrow.sid');
   res.cookie('sparrow.sid', sessionID, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: process.env.NODE_ENV === environment.PRODUCTION,
+    sameSite: process.env.NODE_ENV === environment.PRODUCTION ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 }

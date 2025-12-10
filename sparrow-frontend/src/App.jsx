@@ -25,7 +25,7 @@ const PrivateRoute = ({ element: Component, ...rest }) => {
       // If we have local auth data, verify it's still valid with backend
       if (profileId) {
         try {
-          const response = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/user`, {
+          const response = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/user/me`, {
             method: 'GET',
             credentials: 'include',
             headers: { 
@@ -86,7 +86,7 @@ const PrivateRoute = ({ element: Component, ...rest }) => {
       } else {
         // No local auth data, check if there's a backend session
         try {
-          const response = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/user`, {
+          const response = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/user/me`, {
             method: 'GET',
             credentials: 'include',
             headers: { 

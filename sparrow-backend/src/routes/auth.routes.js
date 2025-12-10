@@ -1,6 +1,6 @@
 const express = require('express');
 const { registerUser, loginUser, logoutUser, checkUsername, setUsername, debugSession } = require('../controllers/auth.controller');
-const ensureAuthenticated = require('../middlewares/ensureAuthenticated');
+const authAny = require('../middlewares/authAny.middleware');
 const { loginLimiter, logoutLimiter } = require('../middlewares/rateLimit.middleware');
 
 const router = express.Router();
@@ -13,7 +13,7 @@ router.post('/set-username', setUsername);
 // Debug route for session troubleshooting (not protected)
 router.get('/debug/session', debugSession);
 
-router.get('/protected', ensureAuthenticated, (req, res) => {
+router.get('/protected', authAny, (req, res) => {
   res.json({ msg: 'This is a protected route', user: req.user });
 });
 

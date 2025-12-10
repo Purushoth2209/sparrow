@@ -10,7 +10,7 @@
 const express = require('express');
 const multer = require('multer');
 const router = express.Router();
-const ensureAuthenticated = require('../middlewares/ensureAuthenticated');
+const authAny = require('../middlewares/authAny.middleware');
 const userController = require('../controllers/user.controller');
 
 // Configure multer for file uploads (store in memory)
@@ -29,7 +29,7 @@ const upload = multer({
  * @access  Private
  * @returns {Object} { success: true, user: {...} }
  */
-router.get('/user/me', ensureAuthenticated, userController.getCurrentUser);
+router.get('/user/me', authAny, userController.getCurrentUser);
 
 /**
  * GET /api/user/search?query=xyz
@@ -41,7 +41,7 @@ router.get('/user/me', ensureAuthenticated, userController.getCurrentUser);
  * @query   {string} query - Search query (min 2 characters)
  * @returns {Object} { success: true, users: [...] }
  */
-router.get('/user/search', ensureAuthenticated, userController.searchUsers);
+router.get('/user/search', authAny, userController.searchUsers);
 
 /**
  * GET /api/user/blocked
@@ -52,7 +52,7 @@ router.get('/user/search', ensureAuthenticated, userController.searchUsers);
  * @access  Private
  * @returns {Object} { success: true, blockedUsers: [...] }
  */
-router.get('/user/blocked', ensureAuthenticated, userController.getBlockedUsers);
+router.get('/user/blocked', authAny, userController.getBlockedUsers);
 
 /**
  * GET /api/user/:profileId
@@ -64,7 +64,7 @@ router.get('/user/blocked', ensureAuthenticated, userController.getBlockedUsers)
  * @param   {string} profileId - Target user's profile ID
  * @returns {Object} { success: true, user: {...} }
  */
-router.get('/user/:profileId', ensureAuthenticated, userController.getUserProfile);
+router.get('/user/:profileId', authAny, userController.getUserProfile);
 
 /**
  * PATCH /api/user/update
@@ -77,7 +77,7 @@ router.get('/user/:profileId', ensureAuthenticated, userController.getUserProfil
  * @body    {string} about - New about text (optional)
  * @returns {Object} { success: true, user: {...} }
  */
-router.patch('/user/update', ensureAuthenticated, userController.updateUser);
+router.patch('/user/update', authAny, userController.updateUser);
 
 /**
  * PUT /api/user/profile/picture
@@ -90,7 +90,7 @@ router.patch('/user/update', ensureAuthenticated, userController.updateUser);
  */
 router.put(
   '/user/profile/picture',
-  ensureAuthenticated,
+  authAny,
   upload.single('image'),
   userController.updateProfilePicture
 );
@@ -104,7 +104,7 @@ router.put(
  * @body    {string} imageUrl - Profile image URL
  * @returns {Object} { success: true, profileId, profileImage }
  */
-router.post('/user/profile-picture', ensureAuthenticated, userController.setProfileImage);
+router.post('/user/profile-picture', authAny, userController.setProfileImage);
 
 /**
  * DELETE /api/user/profile-picture
@@ -114,7 +114,7 @@ router.post('/user/profile-picture', ensureAuthenticated, userController.setProf
  * @access  Private
  * @returns {Object} { success: true, profileId, profileImage: '' }
  */
-router.delete('/user/profile-picture', ensureAuthenticated, userController.deleteProfileImage);
+router.delete('/user/profile-picture', authAny, userController.deleteProfileImage);
 
 /**
  * DELETE /api/user/delete
@@ -124,7 +124,7 @@ router.delete('/user/profile-picture', ensureAuthenticated, userController.delet
  * @access  Private
  * @returns {Object} { success: true, message: 'User account deleted successfully' }
  */
-router.delete('/user/delete', ensureAuthenticated, userController.deleteUser);
+router.delete('/user/delete', authAny, userController.deleteUser);
 
 /**
  * POST /api/user/block/:profileId
@@ -135,7 +135,7 @@ router.delete('/user/delete', ensureAuthenticated, userController.deleteUser);
  * @param   {string} profileId - Target user's profile ID to block
  * @returns {Object} { success: true, message, blockedUserId }
  */
-router.post('/user/block/:profileId', ensureAuthenticated, userController.blockUser);
+router.post('/user/block/:profileId', authAny, userController.blockUser);
 
 /**
  * POST /api/user/unblock/:profileId
@@ -146,7 +146,7 @@ router.post('/user/block/:profileId', ensureAuthenticated, userController.blockU
  * @param   {string} profileId - Target user's profile ID to unblock
  * @returns {Object} { success: true, message, unblockedUserId }
  */
-router.post('/user/unblock/:profileId', ensureAuthenticated, userController.unblockUser);
+router.post('/user/unblock/:profileId', authAny, userController.unblockUser);
 
 
 module.exports = router;

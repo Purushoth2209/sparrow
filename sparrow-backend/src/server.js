@@ -25,6 +25,37 @@ connectDB()
       console.log(`   - GET  /auth/google → Google OIDC login`);
       console.log(`   - GET  /api/user → Get current user (protected)`);
       console.log(`   - GET  /auth/logout → Logout`);
+      
+      // Optionally start workers if ENABLE_WORKERS=true
+      const enableWorkers = process.env.ENABLE_WORKERS === 'true' || process.env.ENABLE_WORKERS === '1';
+      
+      if (enableWorkers) {
+        console.log('🔄 Starting workers (embedded mode)...');
+        
+        // Start message worker
+        try {
+          require('./workers/message.worker');
+          console.log('✅ Message worker started');
+        } catch (error) {
+          console.warn('⚠️ Failed to start message worker:', error.message);
+          console.warn('   Workers are optional - server will continue without them');
+          console.warn('   Messages are still saved, Socket.IO delivery still works');
+        }
+        
+        // Start notification worker
+        try {
+          require('./workers/notification.worker');
+          console.log('✅ Notification worker started');
+        } catch (error) {
+          console.warn('⚠️ Failed to start notification worker:', error.message);
+          console.warn('   Workers are optional - server will continue without them');
+          console.warn('   Messages are still saved, Socket.IO delivery still works');
+        }
+      } else {
+        console.log('ℹ️  Workers disabled (set ENABLE_WORKERS=true to enable)');
+        console.log('   Messages will still be saved, Socket.IO delivery works');
+        console.log('   Async offline delivery requires workers to be running');
+      }
     });
   })
   .catch(err => {

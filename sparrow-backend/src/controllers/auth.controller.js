@@ -60,9 +60,22 @@ exports.loginUser = async (req, res) => {
     // All validation and logic in service
     const user = await authService.loginUser(identifier, email, phoneNumber, password, country);
 
+    // Ensure session exists
+    if (!req.session) {
+      console.error('❌ Session not initialized in loginUser');
+      return errorResponse(res, 'Session initialization failed', 500);
+    }
+
     // Persist session and set cookie
     await sessionService.saveSession(req, user);
-    sessionService.setSessionCookies(res, req.sessionID);
+    
+    // Ensure sessionID exists before setting cookies
+    const sessionID = req.sessionID || req.session.id;
+    if (sessionID) {
+      sessionService.setSessionCookies(res, sessionID);
+    } else {
+      console.warn('⚠️ SessionID not available, cookies may not be set');
+    }
 
     return res.status(200).json({
       success: true,
@@ -71,11 +84,18 @@ exports.loginUser = async (req, res) => {
       passwordWarning: user.passwordWarning
     });
   } catch (error) {
+    console.error('❌ Login error:', error);
     // Handle account lockout (423 status)
     if (error.message && error.message.includes('locked')) {
       return errorResponse(res, error.message, 423);
     }
-    return errorResponse(res, error.message || 'Server error', 400);
+    // Return 500 for unexpected errors, 400 for validation errors
+    const statusCode = error.message && (
+      error.message.includes('Invalid credentials') || 
+      error.message.includes('required') ||
+      error.message.includes('Invalid')
+    ) ? 400 : 500;
+    return errorResponse(res, error.message || 'Server error', statusCode);
   }
 };
 

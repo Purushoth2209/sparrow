@@ -28,7 +28,7 @@ const GlobalSearch = () => {
     
     try {
       const response = await axios.get(
-        `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/search-global?username=${encodeURIComponent(searchQuery)}`,
+        `${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/user/search?query=${encodeURIComponent(searchQuery)}`,
         { 
           withCredentials: true
         }

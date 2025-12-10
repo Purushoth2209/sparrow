@@ -1,11 +1,11 @@
 /**
  * Message States Constants
- * Message status constants
- * 
- * PLACEHOLDER - Message state constants
+ * Message status constants used throughout the application
  */
 
 module.exports = {
-  // Message state constants will be defined here
+  PENDING: 'pending',
+  SENT: 'sent',
+  DELIVERED: 'delivered',
+  READ: 'read'
 };
-

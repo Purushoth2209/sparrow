@@ -6,6 +6,8 @@ const cors = require('cors');
 const { corsOptions } = require('./config/cors');
 const { sessionMiddleware } = require('./config/session');
 const logger = require('./config/logger');
+const errorMiddleware = require('./middlewares/error.middleware');
+const environment = require('./constants/environment');
 
 // Override console methods globally for this application
 console.log = logger.log;
@@ -30,7 +32,7 @@ app.use(cookieParser());
 
 // Debug middleware to log cookie headers (optional - can be removed in production)
 app.use((req, res, next) => {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== environment.PRODUCTION) {
     console.log('🍪 Request cookies:', req.headers.cookie);
     console.log('🍪 Request origin:', req.headers.origin);
   }
@@ -53,7 +55,7 @@ app.use((req, res, next) => {
 
 // Debug Session Store - Enhanced debugging to show serialization
 app.use((req, res, next) => {
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.NODE_ENV !== environment.PRODUCTION) {
     console.log('🧠 Session Debug Info:');
     console.log('  📋 Session ID:', req.sessionID);
     console.log('  👤 User Data:', req.session.user || 'No user data');
@@ -107,6 +109,9 @@ app.use('/api/messages', messageRoutes);
 // Health check route
 const healthRoutes = require('./routes/health.routes');
 app.use('/api', healthRoutes);
+
+// Error handling middleware (must be last)
+app.use(errorMiddleware);
 
 module.exports = app;
 

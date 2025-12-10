@@ -2,15 +2,18 @@ const express = require('express');
 const Message = require('../models/Message');
 const User = require('../models/User');
 const { sendMessage, sendBatchMessages, updateMessageStatus, getDecryptedMessages, getEncryptionStats } = require('../controllers/message.controller');
-const ensureAuthenticated = require('../middlewares/ensureAuthenticated');
+const authAny = require('../middlewares/authAny.middleware');
+const { messageSendLimiter, messageSendMinuteLimiter } = require('../middlewares/rateLimit.middleware');
 const userRepository = require('../repositories/user.repository');
-const messageService = require('../services/message.service');
+const messageService = require('../services/message/message.service');
+const syncService = require('../services/message/sync.service');
+const conversationRepository = require('../repositories/conversation.repository');
 const { io, userSockets } = require('../socket');
 
 const router = express.Router();
 
 // Get messages between current user and a friend (with decryption)
-router.get('/:friendId', ensureAuthenticated, async (req, res) => {
+router.get('/:friendId', authAny, async (req, res) => {
   try {
     const { friendId } = req.params;
     const currentUserId = req.user.profileId;
@@ -53,8 +56,8 @@ router.get('/:friendId', ensureAuthenticated, async (req, res) => {
   }
 });
 
-// Send encrypted message
-router.post('/send', ensureAuthenticated, async (req, res) => {
+// Send encrypted message (with rate limiting: 10/sec, 100/min per user)
+router.post('/send', authAny, messageSendLimiter, messageSendMinuteLimiter, async (req, res) => {
   try {
     const { receiverId, content } = req.body;
     const senderId = req.user.profileId;
@@ -72,10 +75,10 @@ router.post('/send', ensureAuthenticated, async (req, res) => {
     if (receiverSocketId && socketIO) {
       // Update message status to delivered (receiver is online)
       await Message.findByIdAndUpdate(newMessage._id, { 
-        status: 'delivered', 
+        status: messageStates.DELIVERED, 
         deliveredAt: new Date() 
       });
-      savedMessage.status = 'delivered';
+      savedMessage.status = messageStates.DELIVERED;
       savedMessage.deliveredAt = new Date();
       
       // Socket.io will handle decryption when emitting to receiver
@@ -89,8 +92,8 @@ router.post('/send', ensureAuthenticated, async (req, res) => {
   }
 });
 
-// Send multiple messages in batch (optimized for performance)
-router.post('/send/batch', ensureAuthenticated, async (req, res) => {
+// Send multiple messages in batch (optimized for performance, with rate limiting)
+router.post('/send/batch', authAny, messageSendLimiter, messageSendMinuteLimiter, async (req, res) => {
   try {
     const { messages } = req.body; // Array of {receiverId, content} objects
     const senderId = req.user.profileId;
@@ -126,10 +129,10 @@ router.post('/send/batch', ensureAuthenticated, async (req, res) => {
         if (receiverSocketId) {
           // Update message status to delivered (receiver is online)
           await Message.findByIdAndUpdate(message._id, { 
-            status: 'delivered', 
+            status: messageStates.DELIVERED, 
             deliveredAt: new Date() 
           });
-          message.status = 'delivered';
+          message.status = messageStates.DELIVERED;
           message.deliveredAt = new Date();
           
           // Socket.io will handle decryption when emitting to receiver
@@ -149,7 +152,7 @@ router.post('/send/batch', ensureAuthenticated, async (req, res) => {
   }
 });
 
-router.post('/markAsRead', ensureAuthenticated, async (req, res) => {
+router.post('/markAsRead', authAny, async (req, res) => {
   try {
     const { senderId } = req.body;
     const receiverId = req.user.profileId;
@@ -176,11 +179,11 @@ router.post('/markAsRead', ensureAuthenticated, async (req, res) => {
   }
 });
 
-router.post('/updateStatus', async (req, res) => {
+router.post('/updateStatus', authAny, async (req, res) => {
   try {
     const { messageId, status } = req.body;
 
-    if (!['sent', 'delivered', 'read'].includes(status)) {
+    if (![messageStates.SENT, messageStates.DELIVERED, messageStates.READ].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
@@ -189,17 +192,26 @@ router.post('/updateStatus', async (req, res) => {
       return res.status(404).json({ error: 'Message not found' });
     }
 
-    message.status = status;
-    await message.save();
+    // Verify user has permission to update this message
+    const currentUserId = req.user.profileId;
+    if (message.senderId !== currentUserId && message.receiverId !== currentUserId) {
+      return res.status(403).json({ error: 'Unauthorized to update this message' });
+    }
 
-    res.status(200).json({ message: 'Message status updated' });
+    const updatedMessage = await messageService.updateMessageStatus(messageId, status);
+
+    res.status(200).json({ 
+      message: 'Message status updated',
+      updatedMessage 
+    });
   } catch (err) {
+    console.error('❌ Error updating message status:', err);
     res.status(500).json({ error: 'Error updating message status' });
   }
 });
 
 // Get encryption statistics (admin/monitoring endpoint)
-router.get('/stats/encryption', ensureAuthenticated, async (req, res) => {
+router.get('/stats/encryption', authAny, async (req, res) => {
   try {
     const stats = await getEncryptionStats();
     res.status(200).json({ 
@@ -213,7 +225,7 @@ router.get('/stats/encryption', ensureAuthenticated, async (req, res) => {
 });
 
 // Get all messages for current user (with decryption)
-router.get('/', ensureAuthenticated, async (req, res) => {
+router.get('/', authAny, async (req, res) => {
   try {
     const currentUserId = req.user.profileId;
     const messages = await getDecryptedMessages(currentUserId);
@@ -225,6 +237,148 @@ router.get('/', ensureAuthenticated, async (req, res) => {
   } catch (err) {
     console.error('❌ Error fetching all encrypted messages:', err);
     res.status(500).json({ error: 'Error fetching messages' });
+  }
+});
+
+// Sync messages since timestamp (for mobile/offline sync)
+// IMPORTANT: Does NOT requeue messages - fetches directly from DB
+router.get('/sync', authAny, async (req, res) => {
+  try {
+    const currentUserId = req.user.profileId;
+    const since = req.query.since ? new Date(req.query.since) : new Date(0); // Default to epoch if not provided
+    
+    // Get messages since timestamp
+    const messages = await syncService.getMessagesSince(currentUserId, since);
+    
+    // Get conversations with unread counts
+    const conversations = await syncService.getConversationsWithUnreadCounts(currentUserId);
+    
+    res.status(200).json({
+      message: 'Messages synced successfully',
+      messages: messages,
+      conversations: conversations,
+      syncTimestamp: new Date().toISOString(),
+      count: messages.length
+    });
+  } catch (err) {
+    console.error('❌ Error syncing messages:', err);
+    res.status(500).json({ error: 'Error syncing messages' });
+  }
+});
+
+// Get conversations for current user
+router.get('/conversations', authAny, async (req, res) => {
+  try {
+    const currentUserId = req.user.profileId;
+    const conversations = await conversationRepository.getConversationsForUser(currentUserId, {
+      limit: parseInt(req.query.limit) || 50,
+      offset: parseInt(req.query.offset) || 0,
+      includeArchived: req.query.includeArchived === 'true'
+    });
+    
+    res.status(200).json({
+      message: 'Conversations retrieved successfully',
+      conversations: conversations.map(conv => {
+        const userSettings = conv.userSettings.get(currentUserId) || { muted: false, archived: false };
+        return {
+          conversationId: conv.conversationId,
+          participants: conv.participants,
+          lastMessageId: conv.lastMessageId,
+          lastMessagePreview: conv.lastMessagePreview,
+          lastMessageTimestamp: conv.lastMessageTimestamp,
+          unreadCount: conv.unreadCounts.get(currentUserId) || 0,
+          muted: userSettings.muted || false,
+          archived: userSettings.archived || false,
+          mutedAt: userSettings.mutedAt || null,
+          archivedAt: userSettings.archivedAt || null
+        };
+      })
+    });
+  } catch (err) {
+    console.error('❌ Error fetching conversations:', err);
+    res.status(500).json({ error: 'Error fetching conversations' });
+  }
+});
+
+// Get messages for a specific conversation
+router.get('/conversations/:conversationId/messages', authAny, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const currentUserId = req.user.profileId;
+    
+    // Verify user is participant
+    const conversation = await conversationRepository.getConversationById(conversationId);
+    if (!conversation || !conversation.participants.includes(currentUserId)) {
+      return res.status(403).json({ error: 'Access denied to this conversation' });
+    }
+    
+    // Get other participant
+    const otherParticipant = conversation.participants.find(p => p !== currentUserId);
+    
+    // Get messages between users
+    const messages = await getDecryptedMessages(currentUserId, otherParticipant);
+    
+    res.status(200).json({
+      message: 'Conversation messages retrieved successfully',
+      messages: messages
+    });
+  } catch (err) {
+    console.error('❌ Error fetching conversation messages:', err);
+    res.status(500).json({ error: 'Error fetching conversation messages' });
+  }
+});
+
+// Mute or unmute conversation
+router.post('/conversations/:conversationId/mute', authAny, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { muted } = req.body; // boolean
+    const currentUserId = req.user.profileId;
+    
+    // Verify user is participant
+    const conversation = await conversationRepository.getConversationById(conversationId);
+    if (!conversation || !conversation.participants.includes(currentUserId)) {
+      return res.status(403).json({ error: 'Access denied to this conversation' });
+    }
+    
+    // Update mute status
+    const updated = await conversationRepository.setMuteStatus(conversationId, currentUserId, muted === true);
+    
+    res.status(200).json({
+      message: `Conversation ${muted ? 'muted' : 'unmuted'} successfully`,
+      conversationId: conversationId,
+      muted: muted
+    });
+  } catch (err) {
+    console.error('❌ Error muting conversation:', err);
+    res.status(500).json({ error: 'Error muting conversation' });
+  }
+});
+
+// Archive or unarchive conversation
+router.post('/conversations/:conversationId/archive', authAny, async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const { archived } = req.body; // boolean
+    const currentUserId = req.user.profileId;
+    
+    // Verify user is participant
+    const conversation = await conversationRepository.getConversationById(conversationId);
+    if (!conversation || !conversation.participants.includes(currentUserId)) {
+      return res.status(403).json({ error: 'Access denied to this conversation' });
+    }
+    
+    // Update archive status
+    const updated = await conversationRepository.setArchiveStatus(conversationId, currentUserId, archived === true);
+    
+    res.status(200).json({
+      message: `Conversation ${archived ? 'archived' : 'unarchived'} successfully`,
+      conversationId: conversationId,
+      archived: archived
+    });
+  } catch (err) {
+    console.error('❌ Error archiving conversation:', err);
+    res.status(500).json({ error: 'Error archiving conversation' });
   }
 });
 

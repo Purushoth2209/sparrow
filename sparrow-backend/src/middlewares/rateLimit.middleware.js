@@ -53,10 +53,56 @@ const generalLimiter = rateLimit({
   message: 'Too many requests, please try again later.',
 });
 
+/**
+ * Message sending rate limiter (per user)
+ * Prevents chat flooding and DDoS on message queue
+ * 
+ * Limits:
+ * - 10 messages per second per user
+ * - 100 messages per minute per user
+ */
+const messageSendLimiter = rateLimit({
+  windowMs: 1000, // 1 second
+  max: 10, // 10 messages per second
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many messages sent. Please slow down (max 10 messages per second).',
+  keyGenerator: (req) => {
+    // Rate limit per user (sender)
+    return req.user?.profileId || req.ip;
+  },
+  skip: (req) => {
+    // Skip if user is not authenticated (will be caught by auth middleware)
+    return !req.user;
+  }
+});
+
+/**
+ * Message sending rate limiter (per minute)
+ * Secondary limit: 100 messages per minute per user
+ */
+const messageSendMinuteLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // 100 messages per minute
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: 'Too many messages sent. Please slow down (max 100 messages per minute).',
+  keyGenerator: (req) => {
+    // Rate limit per user (sender)
+    return req.user?.profileId || req.ip;
+  },
+  skip: (req) => {
+    // Skip if user is not authenticated (will be caught by auth middleware)
+    return !req.user;
+  }
+});
+
 module.exports = {
   loginLimiter,
   logoutLimiter,
   refreshLimiter,
-  generalLimiter
+  generalLimiter,
+  messageSendLimiter,
+  messageSendMinuteLimiter
 };
 

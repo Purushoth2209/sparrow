@@ -1,4 +1,7 @@
 const mongoose = require('mongoose');
+const messageStates = require('../constants/messageStates');
+const compressionTypes = require('../constants/compressionTypes');
+const environment = require('../constants/environment');
 
 /**
  * Enhanced Message Schema with KMS Envelope Encryption Support
@@ -10,14 +13,21 @@ const MessageSchema = new mongoose.Schema({
   // Standard message fields
   senderId: String,
   receiverId: String,
-  timestamp: Date,
+  timestamp: Date, // Legacy field (use serverTimestamp)
+  serverTimestamp: {
+    type: Date,
+    default: Date.now,
+    required: true
+  },
   status: {
     type: String,
-    enum: ['sent', 'delivered', 'read'],
-    default: 'sent'
+    enum: [messageStates.PENDING, messageStates.SENT, messageStates.DELIVERED, messageStates.READ],
+    default: messageStates.SENT
   },
   deliveredAt: Date,
   readAt: Date,
+  deletedAt: Date, // Optional soft delete
+  expireAt: Date, // TTL expiration date (7 days from serverTimestamp)
   
   // Legacy content field (for non-encrypted messages)
   content: {
@@ -87,10 +97,31 @@ const MessageSchema = new mongoose.Schema({
     // Optional field for optimized decryption
   },
   
+  // Temporary ID for deduplication (client-side identifier)
+  tempId: {
+    type: String,
+    // Optional field for preventing duplicate messages
+  },
+  
   // Migration and rollback support
   originalContent: {
     type: String,
     // Keep original content for rollback during migration
+  },
+  
+  // Compression fields
+  compressionType: {
+    type: String,
+    enum: [compressionTypes.GZIP, compressionTypes.BROTLI, compressionTypes.NONE],
+    default: compressionTypes.GZIP
+  },
+  compressedContent: {
+    type: Buffer,
+    // Compressed content (encrypted content is compressed)
+  },
+  uncompressedSize: {
+    type: Number,
+    // Original size before compression
   },
   
   // Additional metadata
@@ -109,11 +140,15 @@ const MessageSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-MessageSchema.index({ senderId: 1, receiverId: 1, timestamp: -1 });
+MessageSchema.index({ senderId: 1, receiverId: 1, serverTimestamp: -1 });
 MessageSchema.index({ receiverId: 1, status: 1 });
-MessageSchema.index({ timestamp: -1 });
+MessageSchema.index({ receiverId: 1, serverTimestamp: 1 }); // For sync queries
+MessageSchema.index({ timestamp: -1 }); // Legacy
+MessageSchema.index({ serverTimestamp: -1 }); // Primary timestamp index
 MessageSchema.index({ isEncrypted: 1 });
 MessageSchema.index({ sessionId: 1 }); // Index for DEK caching optimization
+MessageSchema.index({ senderId: 1, tempId: 1 }); // Index for deduplication
+MessageSchema.index({ expireAt: 1 }, { expireAfterSeconds: 0 }); // TTL index for automatic deletion
 
 // Virtual for backward compatibility
 MessageSchema.virtual('displayContent').get(function() {
@@ -202,7 +237,7 @@ MessageSchema.methods.toJSON = function() {
   delete obj.encryptedDEK;
   
   // Optionally exclude other sensitive fields
-  if (process.env.NODE_ENV === 'production') {
+  if (process.env.NODE_ENV === environment.PRODUCTION) {
     delete obj.encryptionContext;
     delete obj.originalContent;
   }

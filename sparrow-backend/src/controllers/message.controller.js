@@ -1,15 +1,13 @@
-const messageService = require('../services/message.service');
-const userRepository = require('../repositories/user.repository');
-const Message = require('../models/Message');
-const { io, userSockets } = require('../socket');
+const messageService = require('../services/message/message.service');
 
 /**
  * Message Controller
  * Handles HTTP request/response for messages
+ * All business logic is delegated to messageService
  */
 
-exports.sendMessage = async (senderId, receiverId, content) => {
-  return await messageService.sendMessage(senderId, receiverId, content);
+exports.sendMessage = async (senderId, receiverId, content, tempId) => {
+  return await messageService.sendMessage({ senderId, receiverId, content, tempId });
 };
 
 exports.sendBatchMessages = async (messages) => {
@@ -31,4 +29,3 @@ exports.decryptSingleMessage = async (message) => {
 exports.getEncryptionStats = async () => {
   return await messageService.getEncryptionStats();
 };
-

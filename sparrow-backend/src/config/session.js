@@ -1,6 +1,7 @@
-require('dotenv').config();
+// dotenv is loaded in app.js (entry point)
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
+const environment = require('../constants/environment');
 
 /**
  * Session Configuration
@@ -20,12 +21,12 @@ const sessionConfig = {
   proxy: true,
   rolling: true,
   cookie: {
-    domain: process.env.NODE_ENV === 'production' ? '.sparrowchat.in' : undefined,
+    domain: process.env.NODE_ENV === environment.PRODUCTION ? '.sparrowchat.in' : undefined,
     path: '/',
     maxAge: 7 * 24 * 60 * 60 * 1000,
-    httpOnly: process.env.NODE_ENV === 'production',
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    httpOnly: process.env.NODE_ENV === environment.PRODUCTION,
+    secure: process.env.NODE_ENV === environment.PRODUCTION,
+    sameSite: process.env.NODE_ENV === environment.PRODUCTION ? 'none' : 'lax',
   },
 };
 

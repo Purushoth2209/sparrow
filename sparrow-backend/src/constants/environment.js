@@ -1,11 +1,10 @@
 /**
  * Environment Constants
- * Environment variable constants
- * 
- * PLACEHOLDER - Environment constants
+ * Environment type constants for NODE_ENV
  */
 
 module.exports = {
-  // Environment constants will be defined here
+  DEVELOPMENT: 'development',
+  PRODUCTION: 'production',
+  TEST: 'test'
 };
-

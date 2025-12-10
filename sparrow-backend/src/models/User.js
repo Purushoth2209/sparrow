@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const friendRequestStates = require('../constants/friendRequestStates');
 
 // User Schema
 const userSchema = new mongoose.Schema({
@@ -41,7 +42,7 @@ const userSchema = new mongoose.Schema({
   friendRequests: [
     {
       fromUserId: { type: String, required: true },
-      status: { type: String, enum: ['pending','accepted','rejected'], default: 'pending' },
+      status: { type: String, enum: [friendRequestStates.PENDING, friendRequestStates.ACCEPTED, friendRequestStates.REJECTED], default: friendRequestStates.PENDING },
       timestamp: { type: Date, default: Date.now }
     }
   ],

@@ -7,7 +7,7 @@
 
 const express = require('express');
 const router = express.Router();
-const ensureAuthenticated = require('../middlewares/ensureAuthenticated');
+const authAny = require('../middlewares/authAny.middleware');
 const friendController = require('../controllers/friend.controller');
 
 /**
@@ -18,7 +18,7 @@ const friendController = require('../controllers/friend.controller');
  * @param   {string} username - Username to search for (query parameter)
  * @returns {Object} Array of friends matching username
  */
-router.get('/search-friends', ensureAuthenticated, friendController.searchFriends);
+router.get('/search-friends', authAny, friendController.searchFriends);
 
 /**
  * Send Friend Request
@@ -28,7 +28,7 @@ router.get('/search-friends', ensureAuthenticated, friendController.searchFriend
  * @body    {string} toUserId - Profile ID of user to send request to
  * @returns {Object} Success/failure message
  */
-router.post('/send-request', ensureAuthenticated, friendController.sendFriendRequest);
+router.post('/send-request', authAny, friendController.sendFriendRequest);
 
 /**
  * Get Friend Requests
@@ -37,7 +37,7 @@ router.post('/send-request', ensureAuthenticated, friendController.sendFriendReq
  * @access  Private
  * @returns {Object} Array of pending incoming friend requests
  */
-router.get('/friend-requests', ensureAuthenticated, friendController.getFriendRequests);
+router.get('/friend-requests', authAny, friendController.getFriendRequests);
 
 /**
  * Accept Friend Request
@@ -47,7 +47,7 @@ router.get('/friend-requests', ensureAuthenticated, friendController.getFriendRe
  * @body    {string} fromUserId - Profile ID of user who sent the request
  * @returns {Object} Success/failure message
  */
-router.post('/accept-request', ensureAuthenticated, friendController.acceptFriendRequest);
+router.post('/accept-request', authAny, friendController.acceptFriendRequest);
 
 /**
  * Reject Friend Request
@@ -57,7 +57,7 @@ router.post('/accept-request', ensureAuthenticated, friendController.acceptFrien
  * @body    {string} fromUserId - Profile ID of user who sent the request
  * @returns {Object} Success/failure message
  */
-router.post('/reject-request', ensureAuthenticated, friendController.rejectFriendRequest);
+router.post('/reject-request', authAny, friendController.rejectFriendRequest);
 
 /**
  * Get Friends List
@@ -66,7 +66,7 @@ router.post('/reject-request', ensureAuthenticated, friendController.rejectFrien
  * @access  Private
  * @returns {Object} Array of friends with their details
  */
-router.get('/friends', ensureAuthenticated, friendController.getFriends);
+router.get('/friends', authAny, friendController.getFriends);
 
 /**
  * Remove Friend
@@ -76,6 +76,6 @@ router.get('/friends', ensureAuthenticated, friendController.getFriends);
  * @body    {string} friendId - Profile ID of friend to remove
  * @returns {Object} Success/failure message
  */
-router.post('/remove-friend', ensureAuthenticated, friendController.removeFriend);
+router.post('/remove-friend', authAny, friendController.removeFriend);
 
 module.exports = router;

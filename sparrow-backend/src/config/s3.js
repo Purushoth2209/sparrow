@@ -1,4 +1,4 @@
-require('dotenv').config();
+// dotenv is loaded in app.js (entry point)
 
 /**
  * AWS S3 Configuration

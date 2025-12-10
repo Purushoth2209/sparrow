@@ -34,10 +34,15 @@ class OptimizedKMSEnvelopeEncryption {
     this.encryptionAlgorithm = 'aes-256-gcm';
     
     // DEK Cache configuration
-    this.dekCache = new Map(); // sessionId -> { plaintextDEK, encryptedDEK, keyId, encryptionContext, createdAt, expiresAt }
-    this.dekRotationInterval = options.dekRotationInterval || 30 * 60 * 1000; // 30 minutes default
-    this.dekMaxAge = options.dekMaxAge || 60 * 60 * 1000; // 1 hour max age
+    // sessionId -> { plaintextDEK, encryptedDEK, keyId, encryptionContext, createdAt, messageCount }
+    this.dekCache = new Map();
+    this.dekRotationInterval = options.dekRotationInterval || 30 * 60 * 1000; // 30 minutes default (for cleanup)
+    this.dekMaxAge = options.dekMaxAge || 60 * 60 * 1000; // 1 hour max age (for cache cleanup)
     this.maxCacheSize = options.maxCacheSize || 1000; // Max cached DEKs
+    
+    // Auto-rotation configuration
+    this.dekRotationPeriodHours = options.dekRotationPeriodHours || 24; // Rotate every 24 hours
+    this.dekRotationMessages = options.dekRotationMessages || 1000; // Rotate every 1000 messages
     
     // Batch encryption queue
     this.batchQueue = [];
@@ -117,15 +122,71 @@ class OptimizedKMSEnvelopeEncryption {
   }
 
   /**
+   * Checks if DEK should be rotated based on time or message count
+   * @param {Object} cachedDEK - Cached DEK entry
+   * @param {number} now - Current timestamp
+   * @returns {boolean} True if DEK should be rotated
+   */
+  shouldRotateDEK(cachedDEK, now) {
+    if (!cachedDEK) return true;
+    
+    // Check time-based rotation (24 hours)
+    const ageMs = now - cachedDEK.createdAt;
+    const rotationPeriodMs = cachedDEK.rotationPeriodMs || (this.dekRotationPeriodHours * 60 * 60 * 1000);
+    
+    if (ageMs >= rotationPeriodMs) {
+      console.log(`⏰ DEK rotation needed for session ${cachedDEK.sessionId}: Age ${Math.round(ageMs / (60 * 60 * 1000))} hours >= ${this.dekRotationPeriodHours} hours`);
+      return true;
+    }
+    
+    // Check message count-based rotation (1000 messages)
+    if (cachedDEK.messageCount >= this.dekRotationMessages) {
+      console.log(`📊 DEK rotation needed for session ${cachedDEK.sessionId}: Message count ${cachedDEK.messageCount} >= ${this.dekRotationMessages}`);
+      return true;
+    }
+    
+    return false;
+  }
+
+  /**
    * Gets or creates a DEK for a session
+   * Automatically rotates DEK if:
+   * - 24 hours have passed since creation, OR
+   * - 1000 messages have been encrypted with this DEK
    * Uses caching to avoid repeated KMS calls
    */
   async getSessionDEK(sessionId) {
     try {
-      // Check if we have a valid cached DEK
-      const cachedDEK = this.dekCache.get(sessionId);
       const now = Date.now();
       
+      // Check if we have a cached DEK
+      const cachedDEK = this.dekCache.get(sessionId);
+      
+      // Check if DEK should be rotated (time-based or count-based)
+      if (cachedDEK && this.shouldRotateDEK(cachedDEK, now)) {
+        console.log(`🔄 Auto-rotating DEK for session ${sessionId} (time: ${Math.round((now - cachedDEK.createdAt) / (60 * 60 * 1000))}h, count: ${cachedDEK.messageCount})`);
+        this.stats.dekRotations++;
+        
+        // Remove old DEK from cache
+        this.dekCache.delete(sessionId);
+        
+        // Generate new DEK (will be cached below)
+        const dekData = await this.generateDataEncryptionKey();
+        const expiresAt = now + this.dekMaxAge;
+        
+        const dekCacheEntry = {
+          ...dekData,
+          expiresAt,
+          sessionId,
+          messageCount: 0,
+          rotationPeriodMs: this.dekRotationPeriodHours * 60 * 60 * 1000
+        };
+        
+        this.dekCache.set(sessionId, dekCacheEntry);
+        return dekCacheEntry;
+      }
+      
+      // Check if cached DEK is still valid (not expired for cache cleanup)
       if (cachedDEK && cachedDEK.expiresAt > now) {
         this.stats.cacheHits++;
         return cachedDEK;
@@ -137,14 +198,16 @@ class OptimizedKMSEnvelopeEncryption {
       
       const dekData = await this.generateDataEncryptionKey();
       
-      // Calculate expiration time
+      // Calculate expiration time (for cache cleanup, not rotation)
       const expiresAt = now + this.dekMaxAge;
       
-      // Cache the DEK
+      // Cache the DEK with message count tracking
       const dekCacheEntry = {
         ...dekData,
         expiresAt,
-        sessionId
+        sessionId,
+        messageCount: 0, // Track messages encrypted with this DEK
+        rotationPeriodMs: this.dekRotationPeriodHours * 60 * 60 * 1000 // 24 hours in ms
       };
       
       this.dekCache.set(sessionId, dekCacheEntry);
@@ -162,6 +225,7 @@ class OptimizedKMSEnvelopeEncryption {
 
   /**
    * Encrypts a message using cached DEK (no KMS call)
+   * Increments message count for rotation tracking
    */
   encryptMessageWithCachedDEK(message, sessionId) {
     try {
@@ -169,6 +233,9 @@ class OptimizedKMSEnvelopeEncryption {
       if (!cachedDEK) {
         throw new Error(`No cached DEK found for session ${sessionId}`);
       }
+      
+      // Increment message count for this DEK (for rotation tracking)
+      cachedDEK.messageCount = (cachedDEK.messageCount || 0) + 1;
       
       // Generate random IV for this message
       const iv = crypto.randomBytes(12);
@@ -234,17 +301,24 @@ class OptimizedKMSEnvelopeEncryption {
   }
 
   /**
-   * Optimized message encryption with DEK caching
+   * Optimized message encryption with DEK caching and auto-rotation
    * This is the main function to use when sending messages
+   * 
+   * Auto-rotation rules:
+   * - Rotates DEK every 24 hours (time-based)
+   * - Rotates DEK every 1000 messages (count-based)
+   * - Rotation happens automatically before encryption if conditions are met
    */
   async encryptMessageOptimized(message, sessionId = 'default') {
     try {
       this.stats.totalMessages++;
       
-      // Ensure we have a cached DEK for this session
+      // Get or create DEK for this session (auto-rotates if needed)
+      // This checks both time-based (24h) and count-based (1000 msgs) rotation
       await this.getSessionDEK(sessionId);
       
       // Encrypt using cached DEK (no KMS call)
+      // This also increments message count for rotation tracking
       const encryptedMessage = this.encryptMessageWithCachedDEK(message, sessionId);
       
       return {
@@ -261,15 +335,17 @@ class OptimizedKMSEnvelopeEncryption {
 
   /**
    * Batch encrypt multiple messages efficiently
+   * Tracks message count for auto-rotation (counts each message in batch)
    */
   async batchEncryptMessages(messages, sessionId = 'default') {
     try {
       this.stats.batchOperations++;
       
-      // Ensure we have a cached DEK for this session
+      // Ensure we have a cached DEK for this session (auto-rotates if needed)
       await this.getSessionDEK(sessionId);
       
       // Encrypt all messages with the same cached DEK
+      // Each message increments the count (for rotation tracking)
       const encryptedMessages = messages.map(message => {
         const encrypted = this.encryptMessageWithCachedDEK(message.content, sessionId);
         return {
@@ -419,10 +495,27 @@ class OptimizedKMSEnvelopeEncryption {
    * Gets encryption statistics
    */
   getStats() {
+    // Calculate average message count per session
+    let totalMessageCount = 0;
+    let sessionsWithMessages = 0;
+    for (const [sessionId, dekData] of this.dekCache) {
+      if (dekData.messageCount > 0) {
+        totalMessageCount += dekData.messageCount;
+        sessionsWithMessages++;
+      }
+    }
+    const avgMessagesPerSession = sessionsWithMessages > 0 
+      ? Math.round(totalMessageCount / sessionsWithMessages) 
+      : 0;
+    
     return {
       ...this.stats,
       cacheSize: this.dekCache.size,
-      cacheHitRate: this.stats.cacheHits / (this.stats.cacheHits + this.stats.cacheMisses) * 100 || 0
+      cacheHitRate: this.stats.cacheHits / (this.stats.cacheHits + this.stats.cacheMisses) * 100 || 0,
+      dekRotationPeriodHours: this.dekRotationPeriodHours,
+      dekRotationMessages: this.dekRotationMessages,
+      avgMessagesPerSession: avgMessagesPerSession,
+      totalCachedMessageCount: totalMessageCount
     };
   }
 

@@ -1,11 +1,10 @@
 /**
  * Compression Types Constants
- * Compression type constants
- * 
- * PLACEHOLDER - Compression type constants
+ * Compression algorithm constants used for message compression
  */
 
 module.exports = {
-  // Compression type constants will be defined here
+  NONE: 'none',
+  GZIP: 'gzip',
+  BROTLI: 'brotli'
 };
-

@@ -3,6 +3,8 @@
  * Handles all session operations: save, destroy, and cookie management
  */
 
+const environment = require('../constants/environment');
+
 /**
  * Build user session object from user data
  * @param {Object} user - User object from service
@@ -27,16 +29,27 @@ function buildSessionUser(user) {
  */
 function saveSession(req, user) {
   return new Promise((resolve, reject) => {
-    const sessionUser = buildSessionUser(user);
-    req.session.user = sessionUser;
-    req.session.touch();
-    req.session.save((err) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve();
-      }
-    });
+    if (!req.session) {
+      reject(new Error('Session not initialized. Ensure session middleware is configured.'));
+      return;
+    }
+    
+    try {
+      const sessionUser = buildSessionUser(user);
+      req.session.user = sessionUser;
+      req.session.touch();
+      req.session.save((err) => {
+        if (err) {
+          console.error('❌ Session save error:', err);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    } catch (error) {
+      console.error('❌ Session save exception:', error);
+      reject(error);
+    }
   });
 }
 
@@ -71,8 +84,8 @@ function setSessionCookies(res, sessionID) {
   res.clearCookie('sparrow.sid');
   res.cookie('sparrow.sid', sessionID, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    secure: process.env.NODE_ENV === environment.PRODUCTION,
+    sameSite: process.env.NODE_ENV === environment.PRODUCTION ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 }

@@ -1,4 +1,4 @@
-require('dotenv').config();
+// dotenv is loaded in app.js (entry point)
 const mongoose = require('mongoose');
 
 /**
