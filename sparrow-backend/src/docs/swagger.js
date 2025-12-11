@@ -43,6 +43,7 @@ const endpointFiles = [
   'user.yaml',
   'friend.yaml',
   'message.yaml',
+  'conversation.yaml',
   'notification.yaml',
   'health.yaml'
 ];

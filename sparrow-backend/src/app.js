@@ -76,9 +76,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// Swagger API Documentation
-const swaggerDocs = require('./docs/swagger');
-app.use('/api-docs', swaggerDocs.serve, swaggerDocs.setup);
+// Swagger API Documentation (dev only - disabled in production)
+if (process.env.NODE_ENV !== 'production') {
+  const swaggerDocs = require('./docs/swagger');
+  app.use('/api-docs', swaggerDocs.serve, swaggerDocs.setup);
+}
 
 // Routes
 const authRoutes = require('./routes/auth.routes');
@@ -87,6 +89,7 @@ const messageRoutes = require('./routes/message.routes');
 const oidcAuthRoutes = require('./routes/oidcAuth.routes');
 const userRoutes = require('./routes/user.routes');
 const friendRoutes = require('./routes/friend.routes');
+const conversationRoutes = require('./routes/conversation.routes');
 
 // Web session-based auth routes (email/phone/username authentication)
 app.use('/api/auth', authRoutes);
@@ -105,6 +108,9 @@ app.use('/api', friendRoutes);
 
 // Message routes
 app.use('/api/messages', messageRoutes);
+
+// Conversation routes
+app.use('/api/conversations', conversationRoutes);
 
 // Health check route
 const healthRoutes = require('./routes/health.routes');

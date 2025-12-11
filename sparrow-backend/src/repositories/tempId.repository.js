@@ -53,12 +53,17 @@ async function getMessageIdByTempId(tempId, senderId) {
 
 /**
  * Delete mapping (cleanup)
+ * @deprecated Mappings are automatically deleted by MongoDB TTL index after 7 days
+ * This function is kept for backward compatibility but should not be used
  * @param {string} tempId - Client-side temporary ID
  * @param {string} senderId - Sender's profile ID
  * @returns {Promise<void>}
  */
 async function deleteMapping(tempId, senderId) {
-  await TempIdMapping.deleteOne({ tempId, senderId });
+  // Mappings are automatically deleted by TTL index - no manual deletion needed
+  // This function is kept for backward compatibility only
+  console.warn('⚠️ deleteMapping() called - mappings are automatically deleted by TTL index');
+  // Optionally: await TempIdMapping.deleteOne({ tempId, senderId });
 }
 
 module.exports = {

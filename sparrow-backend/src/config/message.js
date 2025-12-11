@@ -13,26 +13,15 @@ module.exports = {
   // Compression algorithm: 'gzip' or 'brotli'
   compressionAlgorithm: process.env.COMPRESSION_ALGORITHM || compressionTypes.GZIP,
   
-  // Queue retry configuration (for mobile stability)
-  // Workers retry message delivery with limited attempts to avoid:
-  // - Infinite retries
-  // - Duplicate notifications
-  // - Worker overload
-  // 
-  // Retry Plan:
-  // - Attempt 1 → immediate (0s)
-  // - Retry 1 → 2 seconds
-  // - Retry 2 → 5 seconds
+  // Queue retry configuration
+  // Retry limit: 2 retries = 3 total attempts
+  // Exponential backoff: 2^attempt * baseDelay
+  // - Attempt 1: immediate (0s)
+  // - Retry 1: 2^1 * 1000 = 2s
+  // - Retry 2: 2^2 * 1000 = 4s
   // - Stop (no more retries)
-  //
-  // Retry limit: 2 retries = 3 total attempts (fixed for mobile stability)
   queueRetryLimit: 2,
-  // Exponential backoff delays in milliseconds: [0s, 2s, 5s]
-  // First attempt: immediate (0s)
-  // First retry: after 2s
-  // Second retry: after 5s
-  // Then stop (no more retries)
-  queueRetryBackoffMs: [0, 2000, 5000], // Fixed: [0s, 2s, 5s] - explicit limit for mobile stability
+  queueRetryBaseDelayMs: 1000, // Base delay for exponential backoff (1 second)
   
   // DEK rotation policy
   dekRotationMessages: parseInt(process.env.DEK_ROTATION_MESSAGES) || 1000,

@@ -20,9 +20,9 @@ try {
       attempts: messageConfig.queueRetryLimit + 1, // +1 for initial attempt (total: 3 attempts)
       backoff: {
         type: 'exponential',
-        delay: messageConfig.queueRetryBackoffMs[1] || 2000, // First retry after 2s
+        delay: messageConfig.queueRetryBaseDelayMs || 1000, // Base delay: 1s, then 2s, 4s
       },
-      // Explicit retry plan: Attempt 1 (0s) → Retry 1 (2s) → Retry 2 (5s) → Stop
+      // Retry plan: Attempt 1 (0s) → Retry 1 (2s) → Retry 2 (4s) → Stop
       removeOnComplete: {
         age: 3600, // Keep completed jobs for 1 hour
         count: 1000,

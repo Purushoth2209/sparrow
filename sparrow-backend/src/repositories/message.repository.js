@@ -103,11 +103,21 @@ const findMessagesByFriendId = async (senderId, receiverId) => {
 };
 
 const findMessagesSince = async (profileId, timestamp) => {
+  // Return both sent and received messages for the user
   return await Message.find({
-    receiverId: profileId,
-    $or: [
-      { serverTimestamp: { $gte: timestamp } },
-      { timestamp: { $gte: timestamp } } // Fallback for legacy messages
+    $and: [
+      {
+        $or: [
+          { receiverId: profileId },
+          { senderId: profileId }
+        ]
+      },
+      {
+        $or: [
+          { serverTimestamp: { $gte: timestamp } },
+          { timestamp: { $gte: timestamp } } // Fallback for legacy messages
+        ]
+      }
     ]
   }).sort({ serverTimestamp: 1, timestamp: 1 }); // Sort ascending for chronological order
 };

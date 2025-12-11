@@ -2,6 +2,7 @@ const messageRepository = require('../../repositories/message.repository');
 const conversationRepository = require('../../repositories/conversation.repository');
 const encryptService = require('./encrypt.service');
 const { decompressBuffer } = require('../../utils/compression');
+const messageStates = require('../../constants/messageStates');
 
 /**
  * Sync Service
@@ -25,12 +26,19 @@ const { decompressBuffer } = require('../../utils/compression');
  */
 async function getMessagesSince(profileId, timestamp) {
   // Query messages with receiverId = profileId and serverTimestamp > since
+  // Exclude already-read messages to prevent showing them again on refresh
   // Sort by serverTimestamp ascending for chronological order
   const messages = await messageRepository.findMessagesSince(profileId, timestamp);
   
+  // Filter out read messages - only return unread or delivered messages
+  // Keep sent messages (from current user) and unread/delivered messages (to current user)
+  const unreadMessages = messages.filter(msg => 
+    msg.status !== messageStates.READ || msg.senderId === profileId
+  );
+  
   // Decrypt and decompress all messages
   const decryptedMessages = await Promise.all(
-    messages.map(async (message) => {
+    unreadMessages.map(async (message) => {
       try {
         if (message.isEncrypted) {
           const sessionId = message.sessionId || `${message.senderId}-${message.receiverId}`;

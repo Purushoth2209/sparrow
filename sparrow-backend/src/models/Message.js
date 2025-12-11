@@ -148,7 +148,13 @@ MessageSchema.index({ serverTimestamp: -1 }); // Primary timestamp index
 MessageSchema.index({ isEncrypted: 1 });
 MessageSchema.index({ sessionId: 1 }); // Index for DEK caching optimization
 MessageSchema.index({ senderId: 1, tempId: 1 }); // Index for deduplication
-MessageSchema.index({ expireAt: 1 }, { expireAfterSeconds: 0 }); // TTL index for automatic deletion
+// TTL index: Messages expire 7 days after expireAt timestamp
+// expireAfterSeconds: 0 means MongoDB deletes documents when expireAt date is reached
+MessageSchema.index({ expireAt: 1 }, { 
+  expireAfterSeconds: 0,
+  name: 'expireAt_ttl',
+  background: true
+});
 
 // Virtual for backward compatibility
 MessageSchema.virtual('displayContent').get(function() {

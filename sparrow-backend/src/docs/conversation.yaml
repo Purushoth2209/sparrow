@@ -1,0 +1,334 @@
+paths:
+  /api/conversations:
+    get:
+      summary: Get all conversations
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Get all conversations for the authenticated user with participant details and unread counts.
+      tags:
+        - Conversation
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+          description: Maximum number of conversations to return
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+          description: Number of conversations to skip
+        - in: query
+          name: includeArchived
+          schema:
+            type: boolean
+            default: false
+          description: Include archived conversations
+      responses:
+        '200':
+          description: Conversations retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  conversations:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Conversation'
+              examples:
+                success:
+                  summary: Successful response
+                  value:
+                    success: true
+                    conversations:
+                      - conversationId: "user1_user2"
+                        participant:
+                          profileId: "user2"
+                          username: "johndoe"
+                          fullName: "John Doe"
+                          profileImage: "https://example.com/profile.jpg"
+                          isOnline: true
+                          lastSeen: "2024-01-15T10:30:00Z"
+                        lastMessageId: "507f1f77bcf86cd799439011"
+                        lastMessagePreview: "Hey, how are you?"
+                        lastMessageTimestamp: "2024-01-15T10:30:00Z"
+                        unreadCount: 2
+                        userSettings:
+                          muted: false
+                          archived: false
+                          mutedAt: null
+                          archivedAt: null
+                        createdAt: "2024-01-10T08:00:00Z"
+                        updatedAt: "2024-01-15T10:30:00Z"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/conversations/{id}:
+    get:
+      summary: Get a specific conversation
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Get details of a specific conversation by ID. User must be a participant.
+      tags:
+        - Conversation
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Conversation ID
+      responses:
+        '200':
+          description: Conversation retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  conversation:
+                    $ref: '#/components/schemas/Conversation'
+              examples:
+                success:
+                  summary: Successful response
+                  value:
+                    success: true
+                    conversation:
+                      conversationId: "user1_user2"
+                      participant:
+                        profileId: "user2"
+                        username: "johndoe"
+                        fullName: "John Doe"
+                        profileImage: "https://example.com/profile.jpg"
+                        isOnline: true
+                        lastSeen: "2024-01-15T10:30:00Z"
+                      lastMessageId: "507f1f77bcf86cd799439011"
+                      lastMessagePreview: "Hey, how are you?"
+                      lastMessageTimestamp: "2024-01-15T10:30:00Z"
+                      unreadCount: 2
+                      userSettings:
+                        muted: false
+                        archived: false
+                      createdAt: "2024-01-10T08:00:00Z"
+                      updatedAt: "2024-01-15T10:30:00Z"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Access denied (not a participant)
+        '404':
+          description: Conversation not found
+        '500':
+          description: Server error
+
+    delete:
+      summary: Archive a conversation
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Archive (soft delete) a conversation for the authenticated user.
+      tags:
+        - Conversation
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          description: Conversation ID
+      responses:
+        '200':
+          description: Conversation archived successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Conversation archived successfully"
+        '401':
+          description: Unauthorized
+        '403':
+          description: Access denied
+        '404':
+          description: Conversation not found
+        '500':
+          description: Server error
+
+  /api/conversations/reset-unread:
+    post:
+      summary: Reset unread count
+      description: |
+        **🔒 Protected Route** - Authentication required (cookieAuth or bearerAuth)
+        
+        Reset the unread message count for a conversation to zero.
+      tags:
+        - Conversation
+      security:
+        - cookieAuth: []
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - conversationId
+              properties:
+                conversationId:
+                  type: string
+                  example: "user1_user2"
+            examples:
+              resetUnread:
+                summary: Reset unread count
+                value:
+                  conversationId: "user1_user2"
+      responses:
+        '200':
+          description: Unread count reset successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  message:
+                    type: string
+                    example: "Unread count reset successfully"
+                  unreadCount:
+                    type: integer
+                    example: 0
+              examples:
+                success:
+                  summary: Successful reset
+                  value:
+                    success: true
+                    message: "Unread count reset successfully"
+                    unreadCount: 0
+        '400':
+          description: Bad request (missing conversationId)
+        '401':
+          description: Unauthorized
+        '404':
+          description: Conversation not found
+        '500':
+          description: Server error
+
+components:
+  schemas:
+    Conversation:
+      type: object
+      properties:
+        conversationId:
+          type: string
+          description: Unique conversation ID (format: userId1_userId2, sorted)
+          example: "user1_user2"
+        participant:
+          $ref: '#/components/schemas/ConversationParticipant'
+        lastMessageId:
+          type: string
+          description: ID of the last message in the conversation
+          example: "507f1f77bcf86cd799439011"
+        lastMessagePreview:
+          type: string
+          description: Preview text of the last message (max 50 chars)
+          example: "Hey, how are you?"
+        lastMessageTimestamp:
+          type: string
+          format: date-time
+          description: Timestamp of the last message
+          example: "2024-01-15T10:30:00Z"
+        unreadCount:
+          type: integer
+          description: Number of unread messages for the authenticated user
+          example: 2
+        userSettings:
+          type: object
+          properties:
+            muted:
+              type: boolean
+              example: false
+            archived:
+              type: boolean
+              example: false
+            mutedAt:
+              type: string
+              format: date-time
+              nullable: true
+              example: null
+            archivedAt:
+              type: string
+              format: date-time
+              nullable: true
+              example: null
+        createdAt:
+          type: string
+          format: date-time
+          example: "2024-01-10T08:00:00Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2024-01-15T10:30:00Z"
+
+    ConversationParticipant:
+      type: object
+      properties:
+        profileId:
+          type: string
+          example: "user2"
+        username:
+          type: string
+          example: "johndoe"
+        fullName:
+          type: string
+          example: "John Doe"
+        profileImage:
+          type: string
+          format: uri
+          nullable: true
+          example: "https://example.com/profile.jpg"
+        isOnline:
+          type: boolean
+          example: true
+        lastSeen:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2024-01-15T10:30:00Z"
+

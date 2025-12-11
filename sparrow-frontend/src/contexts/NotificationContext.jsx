@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
 import { useSocket } from './SocketContext';
-import { playNotificationSound } from '../utils/notificationSound';
+import { playNotificationSound } from '../assets/sounds/notificationSound';
 
 const NotificationContext = createContext();
 
